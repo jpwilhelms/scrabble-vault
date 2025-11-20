@@ -57,6 +57,16 @@ export default {
           border: "hsl(var(--sidebar-border))",
           ring: "hsl(var(--sidebar-ring))",
         },
+        scrabble: {
+          tile: "hsl(var(--tile-wood))",
+          tileLight: "hsl(var(--tile-wood-light))",
+          board: "hsl(var(--board-beige))",
+          doubleLetter: "hsl(var(--double-letter))",
+          tripleLetter: "hsl(var(--triple-letter))",
+          doubleWord: "hsl(var(--double-word))",
+          tripleWord: "hsl(var(--triple-word))",
+          star: "hsl(var(--star-center))",
+        },
       },
       borderRadius: {
         lg: "var(--radius)",
