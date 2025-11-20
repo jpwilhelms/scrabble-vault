@@ -7,6 +7,7 @@ interface ScrabbleTileProps {
   onDragStart?: (e: React.DragEvent) => void;
   onDragEnd?: () => void;
   className?: string;
+  draggable?: boolean;
 }
 
 export function ScrabbleTile({ 
@@ -14,12 +15,23 @@ export function ScrabbleTile({
   isDragging = false, 
   onDragStart, 
   onDragEnd,
-  className 
+  className,
+  draggable = true,
 }: ScrabbleTileProps) {
+  const handleDragStart = (e: React.DragEvent) => {
+    if (e.dataTransfer) {
+      const target = e.currentTarget as HTMLElement;
+      const rect = target.getBoundingClientRect();
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setDragImage(target, rect.width / 2, rect.height / 2);
+    }
+    onDragStart?.(e);
+  };
+
   return (
     <div
-      draggable
-      onDragStart={onDragStart}
+      draggable={draggable}
+      onDragStart={handleDragStart}
       onDragEnd={onDragEnd}
       className={cn(
         "relative aspect-square bg-gradient-to-br from-scrabble-tileLight to-scrabble-tile",

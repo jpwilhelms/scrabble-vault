@@ -36,7 +36,7 @@ export function BoardSquare({ square, onDrop, onDragOver, isDropTarget }: BoardS
       )}
       {square.tile && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <ScrabbleTile tile={square.tile} />
+          <ScrabbleTile tile={square.tile} draggable={false} />
         </div>
       )}
     </div>

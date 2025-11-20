@@ -18,6 +18,7 @@ const Index = () => {
   const [lastWord, setLastWord] = useState<string>();
   const [lastPoints, setLastPoints] = useState<number>();
   const [placedTiles, setPlacedTiles] = useState<Array<{ x: number; y: number; tile: Tile }>>([]);
+  const [hasFirstMove, setHasFirstMove] = useState(false);
 
   // Initialisiere Spieler-Tiles
   useEffect(() => {
@@ -124,6 +125,15 @@ const Index = () => {
       return;
     }
 
+    // Erster Zug muss das mittlere Feld (7,7) einschließen
+    if (!hasFirstMove) {
+      const centerIncluded = placedTiles.some(({ x, y }) => x === 7 && y === 7);
+      if (!centerIncluded) {
+        toast.error('Der erste Zug muss das mittlere Feld einschließen');
+        return;
+      }
+    }
+
     const points = calculateWordPoints(placedTiles);
     const newScore = score + points;
 
@@ -139,13 +149,14 @@ const Index = () => {
     const { error } = await supabase
       .from('played_words')
       .insert([playedWord]);
-
+ 
     if (error) {
       toast.error('Fehler beim Speichern des Wortes');
       console.error(error);
       return;
     }
-
+ 
+    setHasFirstMove(true);
     setScore(newScore);
     setLastWord(wordData.word);
     setLastPoints(points);
@@ -157,7 +168,7 @@ const Index = () => {
     setTileBag([...tileBag]);
 
     toast.success(`"${wordData.word}" gelegt für ${points} Punkte!`);
-  }, [placedTiles, calculateWordPoints, extractWord, score, tileBag]);
+  }, [placedTiles, calculateWordPoints, extractWord, score, tileBag, hasFirstMove]);
 
   const handleReset = useCallback(() => {
     // Platzierte Tiles zurück ins Rack
@@ -178,8 +189,8 @@ const Index = () => {
   }, [placedTiles]);
 
   return (
-    <div className="min-h-screen bg-background p-2 sm:p-4 lg:p-8">
-      <div className="max-w-7xl mx-auto">
+    <div className="h-screen overflow-hidden bg-background p-2 sm:p-4 lg:p-8">
+      <div className="max-w-7xl mx-auto h-full flex flex-col">
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2 sm:mb-4 lg:mb-8 text-center">
           Scrabble
         </h1>
