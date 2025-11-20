@@ -21,7 +21,7 @@ export function BoardSquare({ square, onDrop, onDragOver, isDropTarget }: BoardS
       onDrop={handleDrop}
       onDragOver={onDragOver}
       className={cn(
-        "w-12 h-12 border border-border/40 relative",
+        "aspect-square border border-border/40 relative",
         "transition-all duration-200",
         square.tile ? "bg-card" : getPremiumColor(square.premium),
         isDropTarget && "ring-2 ring-accent ring-offset-2"

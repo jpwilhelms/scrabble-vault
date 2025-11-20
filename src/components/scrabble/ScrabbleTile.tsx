@@ -22,7 +22,7 @@ export function ScrabbleTile({
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       className={cn(
-        "relative w-12 h-12 bg-gradient-to-br from-scrabble-tileLight to-scrabble-tile",
+        "relative aspect-square bg-gradient-to-br from-scrabble-tileLight to-scrabble-tile",
         "rounded-sm shadow-lg cursor-move select-none",
         "border-2 border-scrabble-tile/30",
         "transition-all duration-200",
