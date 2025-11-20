@@ -9,9 +9,9 @@ interface PlayerRackProps {
 
 export function PlayerRack({ tiles, onTileDragStart, onTileDragEnd }: PlayerRackProps) {
   return (
-    <div className="bg-card rounded-lg shadow-lg p-4 border-2 border-border">
-      <h3 className="text-sm font-semibold text-foreground mb-2">Deine Buchstaben</h3>
-      <div className="flex gap-2 justify-center">
+    <div className="bg-card rounded-lg shadow-lg p-2 sm:p-4 border-2 border-border">
+      <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-2">Deine Buchstaben</h3>
+      <div className="grid grid-cols-7 gap-1 sm:gap-2">
         {tiles.map((tile) => (
           <ScrabbleTile
             key={tile.id}

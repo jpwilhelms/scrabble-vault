@@ -178,17 +178,17 @@ const Index = () => {
   }, [placedTiles]);
 
   return (
-    <div className="min-h-screen bg-background p-8">
+    <div className="min-h-screen bg-background p-2 sm:p-4 lg:p-8">
       <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-bold text-foreground mb-8 text-center">
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2 sm:mb-4 lg:mb-8 text-center">
           Scrabble
         </h1>
         
-        <div className="flex flex-col lg:flex-row gap-8">
+        <div className="flex flex-col gap-3 sm:gap-4 lg:gap-8">
           {/* Spielfeld */}
-          <div className="flex-1">
-            <div className="bg-card rounded-lg shadow-2xl p-4 border-4 border-border inline-block">
-              <div className="grid grid-cols-15 gap-0">
+          <div className="w-full">
+            <div className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 lg:p-4 border-2 lg:border-4 border-border mx-auto max-w-full">
+              <div className="grid grid-cols-15 gap-0 w-full">
                 {board.map((row, y) =>
                   row.map((square, x) => (
                     <BoardSquare
@@ -203,19 +203,21 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Seitenleiste */}
-          <div className="lg:w-80 space-y-6">
-            <ScoreBoard 
-              score={score} 
-              lastWord={lastWord} 
-              lastPoints={lastPoints} 
-            />
-            
-            <GameControls
-              onConfirm={handleConfirmWord}
-              onReset={handleReset}
-              canConfirm={placedTiles.length > 0}
-            />
+          {/* Controls and Rack */}
+          <div className="space-y-3 sm:space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+              <ScoreBoard 
+                score={score} 
+                lastWord={lastWord} 
+                lastPoints={lastPoints} 
+              />
+              
+              <GameControls
+                onConfirm={handleConfirmWord}
+                onReset={handleReset}
+                canConfirm={placedTiles.length > 0}
+              />
+            </div>
 
             <PlayerRack
               tiles={playerTiles}
