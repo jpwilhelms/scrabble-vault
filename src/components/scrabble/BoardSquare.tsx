@@ -23,7 +23,7 @@ export function BoardSquare({ square, onDrop, onDragOver, isDropTarget }: BoardS
       className={cn(
         "aspect-square border border-border/40 relative",
         "transition-all duration-200",
-        square.tile ? "bg-card" : getPremiumColor(square.premium),
+        !square.tile && getPremiumColor(square.premium),
         isDropTarget && "ring-2 ring-accent ring-offset-2"
       )}
     >
@@ -35,7 +35,7 @@ export function BoardSquare({ square, onDrop, onDragOver, isDropTarget }: BoardS
         </div>
       )}
       {square.tile && (
-        <div className="absolute inset-0 flex items-center justify-center">
+        <div className="absolute inset-0 flex items-center justify-center p-0.5">
           <ScrabbleTile tile={square.tile} draggable={false} />
         </div>
       )}
