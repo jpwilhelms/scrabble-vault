@@ -195,9 +195,9 @@ const Index = () => {
           Scrabble
         </h1>
         
-        <div className="flex flex-col gap-3 sm:gap-4 lg:gap-8">
+        <div className="flex flex-col gap-3 sm:gap-4 lg:gap-6 flex-1">
           {/* Spielfeld */}
-          <div className="w-full">
+          <div className="w-full flex-shrink-0">
             <div className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 lg:p-4 border-2 lg:border-4 border-border mx-auto max-w-full">
               <div className="grid grid-cols-15 gap-0 w-full">
                 {board.map((row, y) =>
@@ -214,26 +214,27 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Controls and Rack */}
-          <div className="space-y-3 sm:space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-              <ScoreBoard 
-                score={score} 
-                lastWord={lastWord} 
-                lastPoints={lastPoints} 
-              />
-              
-              <GameControls
-                onConfirm={handleConfirmWord}
-                onReset={handleReset}
-                canConfirm={placedTiles.length > 0}
-              />
-            </div>
-
+          {/* Rack und Controls */}
+          <div className="space-y-2 sm:space-y-3 flex-shrink-0">
             <PlayerRack
               tiles={playerTiles}
               onTileDragStart={handleTileDragStart}
               onTileDragEnd={handleTileDragEnd}
+            />
+            
+            <GameControls
+              onConfirm={handleConfirmWord}
+              onReset={handleReset}
+              canConfirm={placedTiles.length > 0}
+            />
+          </div>
+
+          {/* Punktestand ganz unten */}
+          <div className="mt-auto">
+            <ScoreBoard 
+              score={score} 
+              lastWord={lastWord} 
+              lastPoints={lastPoints} 
             />
           </div>
         </div>
