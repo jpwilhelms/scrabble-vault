@@ -63,8 +63,8 @@ export function getPremiumColor(premium: PremiumType): string {
     case 'TW':
       return 'bg-scrabble-tripleWord';
     case 'STAR':
-      return 'bg-scrabble-star';
+      return 'bg-scrabble-board';
     default:
-      return 'bg-card';
+      return 'bg-scrabble-board';
   }
 }
