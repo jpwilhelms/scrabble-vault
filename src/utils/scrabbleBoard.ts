@@ -38,13 +38,13 @@ export function createBoard(): BoardSquare[][] {
 export function getPremiumLabel(premium: PremiumType): string {
   switch (premium) {
     case 'DL':
-      return '2×\nBuchst.';
+      return '2B';
     case 'TL':
-      return '3×\nBuchst.';
+      return '3B';
     case 'DW':
-      return '2×\nWort';
+      return '2W';
     case 'TW':
-      return '3×\nWort';
+      return '3W';
     case 'STAR':
       return '★';
     default:
