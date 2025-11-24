@@ -39,16 +39,16 @@ All colors MUST be HSL.
     --radius: 0.375rem;
 
     /* Scrabble-spezifische Farben */
-    --tile-wood: 30 45% 40%;
-    --tile-wood-light: 35 50% 55%;
-    --board-beige: 40 20% 94%;
+    --tile-wood: 40 35% 82%;
+    --tile-wood-light: 40 40% 88%;
+    --board-beige: 220 15% 92%;
     
     /* Premium-Felder */
-    --double-letter: 195 75% 75%;
-    --triple-letter: 210 80% 55%;
-    --double-word: 340 70% 75%;
-    --triple-word: 0 70% 50%;
-    --star-center: 350 75% 65%;
+    --double-letter: 200 80% 75%;
+    --triple-letter: 205 85% 45%;
+    --double-word: 10 80% 70%;
+    --triple-word: 330 85% 55%;
+    --star-center: 220 15% 92%;
 
     /* Schatten und Effekte */
     --shadow-tile: 30 30% 20%;
@@ -94,15 +94,15 @@ All colors MUST be HSL.
     --input: 30 20% 25%;
     --ring: 35 50% 55%;
     
-    --tile-wood: 35 50% 55%;
-    --tile-wood-light: 40 55% 65%;
-    --board-beige: 30 15% 18%;
+    --tile-wood: 40 35% 82%;
+    --tile-wood-light: 40 40% 88%;
+    --board-beige: 220 15% 22%;
     
-    --double-letter: 195 60% 45%;
-    --triple-letter: 210 70% 40%;
-    --double-word: 340 60% 45%;
-    --triple-word: 0 70% 40%;
-    --star-center: 350 65% 45%;
+    --double-letter: 200 60% 45%;
+    --triple-letter: 205 70% 35%;
+    --double-word: 10 70% 45%;
+    --triple-word: 330 70% 40%;
+    --star-center: 220 15% 22%;
 
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;

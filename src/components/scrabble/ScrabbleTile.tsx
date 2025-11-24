@@ -55,22 +55,25 @@ export function ScrabbleTile({
       onTouchEnd={handleTouchEnd}
       className={cn(
         "relative aspect-square bg-gradient-to-br from-scrabble-tileLight to-scrabble-tile",
-        "rounded-sm shadow-lg select-none",
+        "rounded-md shadow-md select-none",
         draggable && "cursor-move touch-manipulation",
-        "border-2 border-scrabble-tile/30",
+        "border border-scrabble-tile/20",
         "transition-all duration-200",
-        "hover:scale-105 hover:shadow-xl active:scale-95",
+        "hover:scale-105 hover:shadow-lg active:scale-95",
         isDragging && "opacity-50 scale-95",
         className
       )}
+      style={{
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3)'
+      }}
     >
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-2xl font-bold text-primary-foreground">
+        <span className="text-2xl font-extrabold text-black">
           {tile.letter}
         </span>
       </div>
       <div className="absolute bottom-0.5 right-1">
-        <span className="text-xs font-semibold text-primary-foreground/80">
+        <span className="text-xs font-bold text-black/70">
           {tile.points}
         </span>
       </div>
