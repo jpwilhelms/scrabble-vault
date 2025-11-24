@@ -55,8 +55,8 @@ export function ScrabbleTile({
       onTouchEnd={handleTouchEnd}
       className={cn(
         "relative aspect-square bg-gradient-to-br from-scrabble-tileLight to-scrabble-tile",
-        "rounded-sm shadow-lg select-none touch-none",
-        draggable && "cursor-move",
+        "rounded-sm shadow-lg select-none",
+        draggable && "cursor-move touch-manipulation",
         "border-2 border-scrabble-tile/30",
         "transition-all duration-200",
         "hover:scale-105 hover:shadow-xl active:scale-95",
