@@ -8,6 +8,7 @@ interface ScrabbleTileProps {
   onDragEnd?: () => void;
   className?: string;
   draggable?: boolean;
+  size?: 'normal' | 'small';
 }
 
 export function ScrabbleTile({ 
@@ -17,6 +18,7 @@ export function ScrabbleTile({
   onDragEnd,
   className,
   draggable = true,
+  size = 'normal',
 }: ScrabbleTileProps) {
   const handleDragStart = (e: React.DragEvent) => {
     if (e.dataTransfer) {
@@ -68,12 +70,18 @@ export function ScrabbleTile({
       }}
     >
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-2xl font-extrabold text-black">
+        <span className={cn(
+          "font-extrabold text-black",
+          size === 'small' ? "text-lg" : "text-2xl"
+        )}>
           {tile.letter}
         </span>
       </div>
       <div className="absolute bottom-0.5 right-1">
-        <span className="text-xs font-bold text-black/70">
+        <span className={cn(
+          "font-bold text-black/70",
+          size === 'small' ? "text-[10px]" : "text-xs"
+        )}>
           {tile.points}
         </span>
       </div>

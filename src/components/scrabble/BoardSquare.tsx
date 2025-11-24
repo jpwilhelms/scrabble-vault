@@ -30,14 +30,14 @@ export function BoardSquare({ square, onDrop, onDragOver, isDropTarget }: BoardS
     >
       {!square.tile && square.premium && square.premium !== 'STAR' && (
         <div className="absolute inset-0 flex items-center justify-center p-0.5">
-          <span className="text-[9px] leading-tight font-extrabold text-center whitespace-pre-line text-white">
+          <span className="text-xs leading-tight font-extrabold text-center text-white">
             {getPremiumLabel(square.premium)}
           </span>
         </div>
       )}
       {square.tile && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <ScrabbleTile tile={square.tile} draggable={false} />
+          <ScrabbleTile tile={square.tile} draggable={false} size="small" />
         </div>
       )}
     </div>
