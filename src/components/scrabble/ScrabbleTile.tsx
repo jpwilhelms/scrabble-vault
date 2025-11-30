@@ -77,12 +77,15 @@ export function ScrabbleTile({
           {tile.letter}
         </span>
       </div>
-      <span className={cn(
-        "absolute font-bold text-black/70",
-        size === 'small'
-          ? "bottom-0 right-0 text-[10px]"
-          : "bottom-0 right-0.5 text-xs"
-      )}>
+      <span 
+        className={cn(
+          "absolute font-bold text-black/70",
+          size === 'small'
+            ? "right-0 text-[10px]"
+            : "right-0.5 text-xs"
+        )}
+        style={{ bottom: size === 'small' ? '-1px' : '-2px' }}
+      >
         {tile.points}
       </span>
     </div>
