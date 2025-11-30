@@ -6,6 +6,7 @@ import { BoardSquare } from '@/components/scrabble/BoardSquare';
 import { PlayerRack } from '@/components/scrabble/PlayerRack';
 import { ScoreBoard } from '@/components/scrabble/ScoreBoard';
 import { GameControls } from '@/components/scrabble/GameControls';
+import { BlankTileDialog } from '@/components/scrabble/BlankTileDialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -19,6 +20,7 @@ const Index = () => {
   const [lastPoints, setLastPoints] = useState<number>();
   const [placedTiles, setPlacedTiles] = useState<Array<{ x: number; y: number; tile: Tile }>>([]);
   const [hasFirstMove, setHasFirstMove] = useState(false);
+  const [blankTileDialog, setBlankTileDialog] = useState<{ open: boolean; x: number; y: number; tile: Tile } | null>(null);
 
   // Initialisiere Spieler-Tiles
   useEffect(() => {
@@ -46,6 +48,14 @@ const Index = () => {
     // Tile vom Rack entfernen
     setPlayerTiles(prev => prev.filter(t => t.id !== draggedTile.id));
 
+    // Prüfe ob es ein Blanko-Stein ist
+    if (draggedTile.letter === '?') {
+      // Öffne Dialog zur Buchstabenauswahl
+      setBlankTileDialog({ open: true, x, y, tile: draggedTile });
+      setDraggedTile(null);
+      return;
+    }
+
     // Tile auf dem Board platzieren
     setBoard(prev => {
       const newBoard = prev.map(row => [...row]);
@@ -58,6 +68,40 @@ const Index = () => {
 
     setDraggedTile(null);
   }, [draggedTile, board]);
+
+  const handleBlankTileSelect = useCallback((letter: string) => {
+    if (!blankTileDialog) return;
+
+    const { x, y, tile } = blankTileDialog;
+    
+    // Erstelle neuen Tile mit gewähltem Buchstaben aber 0 Punkten
+    const newTile: Tile = {
+      ...tile,
+      letter,
+      points: 0
+    };
+
+    // Tile auf dem Board platzieren
+    setBoard(prev => {
+      const newBoard = prev.map(row => [...row]);
+      newBoard[y][x] = { ...newBoard[y][x], tile: newTile };
+      return newBoard;
+    });
+
+    // Platzierte Tiles tracken
+    setPlacedTiles(prev => [...prev, { x, y, tile: newTile }]);
+
+    setBlankTileDialog(null);
+  }, [blankTileDialog]);
+
+  const handleBlankTileCancel = useCallback(() => {
+    if (!blankTileDialog) return;
+
+    // Tile zurück ins Rack legen
+    setPlayerTiles(prev => [...prev, blankTileDialog.tile]);
+    
+    setBlankTileDialog(null);
+  }, [blankTileDialog]);
 
   const calculateWordPoints = useCallback((tiles: Array<{ x: number; y: number; tile: Tile }>) => {
     let points = 0;
@@ -239,6 +283,12 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      <BlankTileDialog
+        open={blankTileDialog?.open ?? false}
+        onSelect={handleBlankTileSelect}
+        onCancel={handleBlankTileCancel}
+      />
     </div>
   );
 };

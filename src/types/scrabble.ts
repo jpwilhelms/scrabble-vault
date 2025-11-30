@@ -51,4 +51,5 @@ export const GERMAN_LETTER_DISTRIBUTION: Record<string, { count: number; points:
   'Ä': { count: 1, points: 6 },
   'Ö': { count: 1, points: 8 },
   'Ü': { count: 1, points: 6 },
+  ' ': { count: 2, points: 0 }, // Blanko-Steine
 };
