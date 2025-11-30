@@ -84,7 +84,7 @@ export function ScrabbleTile({
             ? "right-0 text-[10px]"
             : "right-0.5 text-xs"
         )}
-        style={{ bottom: size === 'small' ? '-1px' : '-2px' }}
+        style={{ bottom: size === 'small' ? '-3px' : '-4px' }}
       >
         {tile.points}
       </span>
