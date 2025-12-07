@@ -5,8 +5,9 @@ import { useCallback } from 'react';
 interface ScrabbleTileProps {
   tile: Tile;
   isDragging?: boolean;
-  onDragStart?: () => void;
-  onDragEnd?: () => void;
+  onDragStart?: (position: { x: number; y: number }) => void;
+  onDragMove?: (position: { x: number; y: number }) => void;
+  onDragEnd?: (position: { x: number; y: number }) => void;
   className?: string;
   draggable?: boolean;
   size?: 'normal' | 'small';
@@ -15,7 +16,8 @@ interface ScrabbleTileProps {
 export function ScrabbleTile({ 
   tile, 
   isDragging = false, 
-  onDragStart, 
+  onDragStart,
+  onDragMove,
   onDragEnd,
   className,
   draggable = true,
@@ -23,49 +25,55 @@ export function ScrabbleTile({
 }: ScrabbleTileProps) {
   const isBlank = tile.letter === ' ';
 
-  const handleDragStart = useCallback((e: React.DragEvent) => {
-    if (!draggable) return;
-    if (e.dataTransfer) {
-      const target = e.currentTarget as HTMLElement;
-      const rect = target.getBoundingClientRect();
-      e.dataTransfer.effectAllowed = 'move';
-      e.dataTransfer.setDragImage(target, rect.width / 2, rect.height / 2);
-    }
-    onDragStart?.();
-  }, [draggable, onDragStart]);
-
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!draggable) return;
-    // Verhindere Scroll während Drag
+    e.preventDefault();
     e.stopPropagation();
-    onDragStart?.();
+    
+    const touch = e.touches[0];
+    onDragStart?.({ x: touch.clientX, y: touch.clientY });
   }, [draggable, onDragStart]);
 
-  const handleTouchEnd = useCallback(() => {
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
     if (!draggable) return;
-    onDragEnd?.();
+    e.preventDefault();
+    
+    const touch = e.touches[0];
+    onDragMove?.({ x: touch.clientX, y: touch.clientY });
+  }, [draggable, onDragMove]);
+
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (!draggable) return;
+    e.preventDefault();
+    
+    const touch = e.changedTouches[0];
+    onDragEnd?.({ x: touch.clientX, y: touch.clientY });
   }, [draggable, onDragEnd]);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (!draggable) return;
+    e.preventDefault();
+    onDragStart?.({ x: e.clientX, y: e.clientY });
+  }, [draggable, onDragStart]);
 
   return (
     <div
-      draggable={draggable}
-      onDragStart={handleDragStart}
-      onDragEnd={onDragEnd}
       onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
       className={cn(
         "relative aspect-square bg-gradient-to-br from-scrabble-tileLight to-scrabble-tile",
         "rounded-md shadow-md select-none",
         draggable && "cursor-move",
         "border border-scrabble-tile/20",
         "transition-all duration-200",
-        "hover:scale-105 hover:shadow-lg active:scale-95",
-        isDragging && "opacity-50 scale-95",
+        isDragging && "opacity-30 scale-95",
         className
       )}
       style={{
         boxShadow: '0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3)',
-        touchAction: draggable ? 'none' : 'auto',
+        touchAction: 'none',
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
       }}
