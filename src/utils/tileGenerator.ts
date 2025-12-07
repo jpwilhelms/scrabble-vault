@@ -7,7 +7,7 @@ export function generateTileBag(): Tile[] {
   Object.entries(GERMAN_LETTER_DISTRIBUTION).forEach(([letter, { count, points }]) => {
     for (let i = 0; i < count; i++) {
       tiles.push({
-        letter: letter === ' ' ? '?' : letter,
+        letter, // Blanko bleibt als ' ' (Leerzeichen)
         points,
         id: `tile-${id++}`,
       });
