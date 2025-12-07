@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { BoardSquare as BoardSquareType, Tile, PlayedWord } from '@/types/scrabble';
 import { createBoard } from '@/utils/scrabbleBoard';
 import { generateTileBag, drawTiles } from '@/utils/tileGenerator';
@@ -7,6 +7,8 @@ import { PlayerRack } from '@/components/scrabble/PlayerRack';
 import { ScoreBoard } from '@/components/scrabble/ScoreBoard';
 import { GameControls } from '@/components/scrabble/GameControls';
 import { BlankTileDialog } from '@/components/scrabble/BlankTileDialog';
+import { DragOverlay } from '@/components/scrabble/DragOverlay';
+import { useTouchDrag } from '@/hooks/useTouchDrag';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -14,18 +16,14 @@ const Index = () => {
   const [board, setBoard] = useState<BoardSquareType[][]>(() => createBoard());
   const [tileBag, setTileBag] = useState<Tile[]>(() => generateTileBag());
   const [playerTiles, setPlayerTiles] = useState<Tile[]>([]);
-  const [draggedTile, setDraggedTile] = useState<Tile | null>(null);
   const [score, setScore] = useState(0);
   const [lastWord, setLastWord] = useState<string>();
   const [lastPoints, setLastPoints] = useState<number>();
   const [placedTiles, setPlacedTiles] = useState<Array<{ x: number; y: number; tile: Tile }>>([]);
   const [hasFirstMove, setHasFirstMove] = useState(false);
   const [blankTileDialog, setBlankTileDialog] = useState<{ open: boolean; x: number; y: number; tile: Tile } | null>(null);
-  const [dragSource, setDragSource] = useState<{ type: 'rack' | 'board'; x?: number; y?: number } | null>(null);
-  
-  // Touch-Drag State
-  const draggedTileRef = useRef<Tile | null>(null);
-  const dragSourceRef = useRef<{ type: 'rack' | 'board'; x?: number; y?: number } | null>(null);
+
+  const { dragState, startDrag, updatePosition, endDrag, getDragState } = useTouchDrag();
 
   // Initialisiere Spieler-Tiles
   useEffect(() => {
@@ -34,127 +32,152 @@ const Index = () => {
     setTileBag([...tileBag]);
   }, []);
 
-  // Sync refs mit state für Touch-Events
+  // Global mouse move/up handlers for desktop drag
   useEffect(() => {
-    draggedTileRef.current = draggedTile;
-    dragSourceRef.current = dragSource;
-  }, [draggedTile, dragSource]);
+    const handleMouseMove = (e: MouseEvent) => {
+      const state = getDragState();
+      if (state.tile) {
+        updatePosition({ x: e.clientX, y: e.clientY });
+      }
+    };
 
-  const handleTileDragStart = useCallback((tile: Tile) => {
-    setDraggedTile(tile);
-    setDragSource({ type: 'rack' });
-  }, []);
+    const handleMouseUp = (e: MouseEvent) => {
+      const state = getDragState();
+      if (state.tile) {
+        handleDragEnd({ x: e.clientX, y: e.clientY });
+      }
+    };
 
-  const handleBoardTileDragStart = useCallback((tile: Tile, fromX: number, fromY: number) => {
-    setDraggedTile(tile);
-    setDragSource({ type: 'board', x: fromX, y: fromY });
-  }, []);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
 
-  const handleTileDragEnd = useCallback(() => {
-    setDraggedTile(null);
-    setDragSource(null);
-  }, []);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [getDragState, updatePosition]);
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-  }, []);
+  const handleRackTileDragStart = useCallback((tile: Tile, position: { x: number; y: number }) => {
+    startDrag(tile, { type: 'rack' }, position);
+  }, [startDrag]);
 
-  const handleDrop = useCallback((x: number, y: number) => {
-    const tile = draggedTileRef.current || draggedTile;
-    const source = dragSourceRef.current || dragSource;
-    
-    if (!tile) return;
-    if (board[y][x].tile) return;
+  const handleBoardTileDragStart = useCallback((tile: Tile, x: number, y: number, position: { x: number; y: number }) => {
+    startDrag(tile, { type: 'board', x, y }, position);
+  }, [startDrag]);
 
-    // Wenn vom Board gezogen, altes Feld leeren
-    if (source?.type === 'board' && source.x !== undefined && source.y !== undefined) {
-      setBoard(prev => {
-        const newBoard = prev.map(row => [...row]);
-        newBoard[source.y!][source.x!] = { ...newBoard[source.y!][source.x!], tile: undefined };
-        return newBoard;
-      });
-      setPlacedTiles(prev => prev.filter(p => !(p.x === source.x && p.y === source.y)));
-    } else {
-      // Tile vom Rack entfernen
-      setPlayerTiles(prev => prev.filter(t => t.id !== tile.id));
+  const handleDragMove = useCallback((position: { x: number; y: number }) => {
+    updatePosition(position);
+  }, [updatePosition]);
+
+  const findDropTarget = useCallback((x: number, y: number): { type: 'board'; x: number; y: number } | { type: 'rack' } | null => {
+    const element = document.elementFromPoint(x, y);
+    if (!element) return null;
+
+    // Check for board square
+    const boardSquare = element.closest('[data-board-x]');
+    if (boardSquare) {
+      const bx = parseInt(boardSquare.getAttribute('data-board-x') || '0');
+      const by = parseInt(boardSquare.getAttribute('data-board-y') || '0');
+      return { type: 'board', x: bx, y: by };
     }
 
-    // Prüfe ob es ein Blanko-Stein ist
-    if (tile.letter === ' ') {
-      setBlankTileDialog({ open: true, x, y, tile });
-      setDraggedTile(null);
-      setDragSource(null);
+    // Check for rack
+    const rack = element.closest('[data-drop-target="rack"]');
+    if (rack) {
+      return { type: 'rack' };
+    }
+
+    return null;
+  }, []);
+
+  const handleDragEnd = useCallback((position: { x: number; y: number }) => {
+    const state = getDragState();
+    const tile = state.tile;
+    const source = state.source;
+
+    if (!tile) {
+      endDrag();
       return;
     }
 
-    // Tile auf dem Board platzieren
-    setBoard(prev => {
-      const newBoard = prev.map(row => [...row]);
-      newBoard[y][x] = { ...newBoard[y][x], tile };
-      return newBoard;
-    });
+    const dropTarget = findDropTarget(position.x, position.y);
 
-    // Platzierte Tiles tracken
-    setPlacedTiles(prev => [...prev, { x, y, tile }]);
+    if (dropTarget?.type === 'board') {
+      const { x, y } = dropTarget;
+      
+      // Check if target is empty
+      if (board[y][x].tile) {
+        endDrag();
+        return;
+      }
 
-    setDraggedTile(null);
-    setDragSource(null);
-  }, [draggedTile, board, dragSource]);
+      // Remove from source
+      if (source?.type === 'board' && source.x !== undefined && source.y !== undefined) {
+        setBoard(prev => {
+          const newBoard = prev.map(row => [...row]);
+          newBoard[source.y!][source.x!] = { ...newBoard[source.y!][source.x!], tile: undefined };
+          return newBoard;
+        });
+        setPlacedTiles(prev => prev.filter(p => !(p.x === source.x && p.y === source.y)));
+      } else {
+        setPlayerTiles(prev => prev.filter(t => t.id !== tile.id));
+      }
 
-  const handleDropToRack = useCallback(() => {
-    const tile = draggedTileRef.current || draggedTile;
-    const source = dragSourceRef.current || dragSource;
-    
-    if (!tile) return;
-    if (source?.type !== 'board') return;
+      // Check for blank tile
+      if (tile.letter === ' ') {
+        setBlankTileDialog({ open: true, x, y, tile });
+        endDrag();
+        return;
+      }
 
-    // Tile vom Board entfernen
-    if (source.x !== undefined && source.y !== undefined) {
+      // Place tile
       setBoard(prev => {
         const newBoard = prev.map(row => [...row]);
-        newBoard[source.y!][source.x!] = { ...newBoard[source.y!][source.x!], tile: undefined };
+        newBoard[y][x] = { ...newBoard[y][x], tile };
         return newBoard;
       });
-      setPlacedTiles(prev => prev.filter(p => !(p.x === source.x && p.y === source.y)));
+      setPlacedTiles(prev => [...prev, { x, y, tile }]);
+
+    } else if (dropTarget?.type === 'rack' && source?.type === 'board') {
+      // Return to rack from board
+      if (source.x !== undefined && source.y !== undefined) {
+        setBoard(prev => {
+          const newBoard = prev.map(row => [...row]);
+          newBoard[source.y!][source.x!] = { ...newBoard[source.y!][source.x!], tile: undefined };
+          return newBoard;
+        });
+        setPlacedTiles(prev => prev.filter(p => !(p.x === source.x && p.y === source.y)));
+        setPlayerTiles(prev => [...prev, tile]);
+      }
     }
 
-    // Tile ins Rack legen
-    setPlayerTiles(prev => [...prev, tile]);
-    setDraggedTile(null);
-    setDragSource(null);
-  }, [draggedTile, dragSource]);
+    endDrag();
+  }, [board, endDrag, findDropTarget, getDragState]);
 
   const handleBlankTileSelect = useCallback((letter: string) => {
     if (!blankTileDialog) return;
 
     const { x, y, tile } = blankTileDialog;
     
-    // Erstelle neuen Tile mit gewähltem Buchstaben aber 0 Punkten
     const newTile: Tile = {
       ...tile,
       letter,
       points: 0
     };
 
-    // Tile auf dem Board platzieren
     setBoard(prev => {
       const newBoard = prev.map(row => [...row]);
       newBoard[y][x] = { ...newBoard[y][x], tile: newTile };
       return newBoard;
     });
 
-    // Platzierte Tiles tracken
     setPlacedTiles(prev => [...prev, { x, y, tile: newTile }]);
-
     setBlankTileDialog(null);
   }, [blankTileDialog]);
 
   const handleBlankTileCancel = useCallback(() => {
     if (!blankTileDialog) return;
-
-    // Tile zurück ins Rack legen
     setPlayerTiles(prev => [...prev, blankTileDialog.tile]);
-    
     setBlankTileDialog(null);
   }, [blankTileDialog]);
 
@@ -185,16 +208,13 @@ const Index = () => {
   const extractWord = useCallback((tiles: Array<{ x: number; y: number; tile: Tile }>): { word: string; direction: 'horizontal' | 'vertical' } | null => {
     if (tiles.length === 0) return null;
 
-    // Sortiere Tiles nach Position
     const sortedByX = [...tiles].sort((a, b) => a.x - b.x);
     const sortedByY = [...tiles].sort((a, b) => a.y - b.y);
 
-    // Prüfe ob horizontal
     const isHorizontal = sortedByX.every((tile, i, arr) => 
       i === 0 || tile.y === arr[i - 1].y
     );
 
-    // Prüfe ob vertikal
     const isVertical = sortedByY.every((tile, i, arr) => 
       i === 0 || tile.x === arr[i - 1].x
     );
@@ -224,7 +244,6 @@ const Index = () => {
       return;
     }
 
-    // Erster Zug muss das mittlere Feld (7,7) einschließen
     if (!hasFirstMove) {
       const centerIncluded = placedTiles.some(({ x, y }) => x === 7 && y === 7);
       if (!centerIncluded) {
@@ -236,7 +255,7 @@ const Index = () => {
     const points = calculateWordPoints(placedTiles);
     const newScore = score + points;
 
-    // Speichere in Datenbank
+    // Speichere in Datenbank (fehlertoleranter)
     const playedWord: PlayedWord = {
       word: wordData.word,
       points,
@@ -245,14 +264,18 @@ const Index = () => {
       direction: wordData.direction
     };
 
-    const { error } = await supabase
-      .from('played_words')
-      .insert([playedWord]);
- 
-    if (error) {
-      toast.error('Fehler beim Speichern des Wortes');
-      console.error(error);
-      return;
+    try {
+      const { error } = await supabase
+        .from('played_words')
+        .insert([playedWord]);
+   
+      if (error) {
+        console.error('Datenbankfehler:', error);
+        // Spiel trotzdem fortsetzen
+      }
+    } catch (e) {
+      console.error('Netzwerkfehler:', e);
+      // Spiel trotzdem fortsetzen
     }
  
     setHasFirstMove(true);
@@ -261,7 +284,6 @@ const Index = () => {
     setLastPoints(points);
     setPlacedTiles([]);
 
-    // Neue Tiles ziehen
     const newTiles = drawTiles(tileBag, placedTiles.length);
     setPlayerTiles(prev => [...prev, ...newTiles]);
     setTileBag([...tileBag]);
@@ -270,11 +292,9 @@ const Index = () => {
   }, [placedTiles, calculateWordPoints, extractWord, score, tileBag, hasFirstMove]);
 
   const handleReset = useCallback(() => {
-    // Platzierte Tiles zurück ins Rack
     const tilesToReturn = placedTiles.map(({ tile }) => tile);
     setPlayerTiles(prev => [...prev, ...tilesToReturn]);
 
-    // Board zurücksetzen
     setBoard(prev => {
       const newBoard = prev.map(row => [...row]);
       placedTiles.forEach(({ x, y }) => {
@@ -302,15 +322,17 @@ const Index = () => {
                 {board.map((row, y) =>
                   row.map((square, x) => {
                     const isCurrentTurn = placedTiles.some(p => p.x === x && p.y === y);
+                    const isDraggedTile = dragState.source?.type === 'board' && 
+                      dragState.source.x === x && dragState.source.y === y;
                     return (
                       <BoardSquare
                         key={`${x}-${y}`}
                         square={square}
-                        onDrop={handleDrop}
-                        onDragOver={handleDragOver}
                         isCurrentTurn={isCurrentTurn}
+                        isDraggedTile={isDraggedTile}
                         onTileDragStart={handleBoardTileDragStart}
-                        onTileDragEnd={handleTileDragEnd}
+                        onTileDragMove={handleDragMove}
+                        onTileDragEnd={handleDragEnd}
                       />
                     );
                   })
@@ -323,9 +345,10 @@ const Index = () => {
           <div className="space-y-2 sm:space-y-3 flex-shrink-0">
             <PlayerRack
               tiles={playerTiles}
-              onTileDragStart={handleTileDragStart}
-              onTileDragEnd={handleTileDragEnd}
-              onDropToRack={handleDropToRack}
+              draggedTileId={dragState.source?.type === 'rack' ? dragState.tile?.id : null}
+              onTileDragStart={handleRackTileDragStart}
+              onTileDragMove={handleDragMove}
+              onTileDragEnd={handleDragEnd}
             />
             
             <GameControls
@@ -335,7 +358,7 @@ const Index = () => {
             />
           </div>
 
-          {/* Punktestand ganz unten */}
+          {/* Punktestand */}
           <div className="mt-auto">
             <ScoreBoard 
               score={score} 
@@ -345,6 +368,8 @@ const Index = () => {
           </div>
         </div>
       </div>
+
+      <DragOverlay tile={dragState.tile} position={dragState.position} />
 
       <BlankTileDialog
         open={blankTileDialog?.open ?? false}

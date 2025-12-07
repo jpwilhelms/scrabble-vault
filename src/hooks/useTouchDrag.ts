@@ -1,38 +1,59 @@
-import { useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Tile } from '@/types/scrabble';
 
-interface UseTouchDragOptions {
-  onDragStart?: () => void;
-  onDragEnd?: () => void;
-  disabled?: boolean;
+interface DragState {
+  tile: Tile | null;
+  source: { type: 'rack' | 'board'; x?: number; y?: number } | null;
+  position: { x: number; y: number } | null;
 }
 
-export function useTouchDrag({ onDragStart, onDragEnd, disabled = false }: UseTouchDragOptions = {}) {
-  const isDraggingRef = useRef(false);
-  const startPosRef = useRef({ x: 0, y: 0 });
+export function useTouchDrag() {
+  const [dragState, setDragState] = useState<DragState>({
+    tile: null,
+    source: null,
+    position: null,
+  });
+  
+  const dragStateRef = useRef<DragState>(dragState);
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (disabled) return;
-    
-    const touch = e.touches[0];
-    startPosRef.current = { x: touch.clientX, y: touch.clientY };
-    isDraggingRef.current = true;
-    
-    // Sofort Drag starten ohne Verzögerung
-    onDragStart?.();
-  }, [disabled, onDragStart]);
+  useEffect(() => {
+    dragStateRef.current = dragState;
+  }, [dragState]);
 
-  const handleTouchEnd = useCallback(() => {
-    if (!isDraggingRef.current) return;
-    isDraggingRef.current = false;
-    onDragEnd?.();
-  }, [onDragEnd]);
+  const startDrag = useCallback((
+    tile: Tile, 
+    source: { type: 'rack' | 'board'; x?: number; y?: number },
+    initialPosition: { x: number; y: number }
+  ) => {
+    setDragState({
+      tile,
+      source,
+      position: initialPosition,
+    });
+  }, []);
+
+  const updatePosition = useCallback((position: { x: number; y: number }) => {
+    setDragState(prev => ({
+      ...prev,
+      position,
+    }));
+  }, []);
+
+  const endDrag = useCallback(() => {
+    setDragState({
+      tile: null,
+      source: null,
+      position: null,
+    });
+  }, []);
+
+  const getDragState = useCallback(() => dragStateRef.current, []);
 
   return {
-    touchHandlers: {
-      onTouchStart: handleTouchStart,
-      onTouchEnd: handleTouchEnd,
-      onTouchCancel: handleTouchEnd,
-    },
-    isDragging: isDraggingRef.current,
+    dragState,
+    startDrag,
+    updatePosition,
+    endDrag,
+    getDragState,
   };
 }
