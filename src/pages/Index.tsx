@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { BoardSquare as BoardSquareType, Tile, PlayedWord } from '@/types/scrabble';
 import { createBoard } from '@/utils/scrabbleBoard';
 import { generateTileBag, drawTiles } from '@/utils/tileGenerator';
@@ -21,6 +21,11 @@ const Index = () => {
   const [placedTiles, setPlacedTiles] = useState<Array<{ x: number; y: number; tile: Tile }>>([]);
   const [hasFirstMove, setHasFirstMove] = useState(false);
   const [blankTileDialog, setBlankTileDialog] = useState<{ open: boolean; x: number; y: number; tile: Tile } | null>(null);
+  const [dragSource, setDragSource] = useState<{ type: 'rack' | 'board'; x?: number; y?: number } | null>(null);
+  
+  // Touch-Drag State
+  const draggedTileRef = useRef<Tile | null>(null);
+  const dragSourceRef = useRef<{ type: 'rack' | 'board'; x?: number; y?: number } | null>(null);
 
   // Initialisiere Spieler-Tiles
   useEffect(() => {
@@ -29,7 +34,11 @@ const Index = () => {
     setTileBag([...tileBag]);
   }, []);
 
-  const [dragSource, setDragSource] = useState<{ type: 'rack' | 'board'; x?: number; y?: number } | null>(null);
+  // Sync refs mit state für Touch-Events
+  useEffect(() => {
+    draggedTileRef.current = draggedTile;
+    dragSourceRef.current = dragSource;
+  }, [draggedTile, dragSource]);
 
   const handleTileDragStart = useCallback((tile: Tile) => {
     setDraggedTile(tile);
@@ -51,27 +60,28 @@ const Index = () => {
   }, []);
 
   const handleDrop = useCallback((x: number, y: number) => {
-    if (!draggedTile) return;
+    const tile = draggedTileRef.current || draggedTile;
+    const source = dragSourceRef.current || dragSource;
+    
+    if (!tile) return;
     if (board[y][x].tile) return;
 
     // Wenn vom Board gezogen, altes Feld leeren
-    if (dragSource?.type === 'board' && dragSource.x !== undefined && dragSource.y !== undefined) {
+    if (source?.type === 'board' && source.x !== undefined && source.y !== undefined) {
       setBoard(prev => {
         const newBoard = prev.map(row => [...row]);
-        newBoard[dragSource.y!][dragSource.x!] = { ...newBoard[dragSource.y!][dragSource.x!], tile: undefined };
+        newBoard[source.y!][source.x!] = { ...newBoard[source.y!][source.x!], tile: undefined };
         return newBoard;
       });
-      // Update placedTiles
-      setPlacedTiles(prev => prev.filter(p => !(p.x === dragSource.x && p.y === dragSource.y)));
+      setPlacedTiles(prev => prev.filter(p => !(p.x === source.x && p.y === source.y)));
     } else {
       // Tile vom Rack entfernen
-      setPlayerTiles(prev => prev.filter(t => t.id !== draggedTile.id));
+      setPlayerTiles(prev => prev.filter(t => t.id !== tile.id));
     }
 
     // Prüfe ob es ein Blanko-Stein ist
-    if (draggedTile.letter === ' ') {
-      // Öffne Dialog zur Buchstabenauswahl
-      setBlankTileDialog({ open: true, x, y, tile: draggedTile });
+    if (tile.letter === ' ') {
+      setBlankTileDialog({ open: true, x, y, tile });
       setDraggedTile(null);
       setDragSource(null);
       return;
@@ -80,33 +90,36 @@ const Index = () => {
     // Tile auf dem Board platzieren
     setBoard(prev => {
       const newBoard = prev.map(row => [...row]);
-      newBoard[y][x] = { ...newBoard[y][x], tile: draggedTile };
+      newBoard[y][x] = { ...newBoard[y][x], tile };
       return newBoard;
     });
 
     // Platzierte Tiles tracken
-    setPlacedTiles(prev => [...prev, { x, y, tile: draggedTile }]);
+    setPlacedTiles(prev => [...prev, { x, y, tile }]);
 
     setDraggedTile(null);
     setDragSource(null);
   }, [draggedTile, board, dragSource]);
 
   const handleDropToRack = useCallback(() => {
-    if (!draggedTile) return;
-    if (dragSource?.type !== 'board') return;
+    const tile = draggedTileRef.current || draggedTile;
+    const source = dragSourceRef.current || dragSource;
+    
+    if (!tile) return;
+    if (source?.type !== 'board') return;
 
     // Tile vom Board entfernen
-    if (dragSource.x !== undefined && dragSource.y !== undefined) {
+    if (source.x !== undefined && source.y !== undefined) {
       setBoard(prev => {
         const newBoard = prev.map(row => [...row]);
-        newBoard[dragSource.y!][dragSource.x!] = { ...newBoard[dragSource.y!][dragSource.x!], tile: undefined };
+        newBoard[source.y!][source.x!] = { ...newBoard[source.y!][source.x!], tile: undefined };
         return newBoard;
       });
-      setPlacedTiles(prev => prev.filter(p => !(p.x === dragSource.x && p.y === dragSource.y)));
+      setPlacedTiles(prev => prev.filter(p => !(p.x === source.x && p.y === source.y)));
     }
 
     // Tile ins Rack legen
-    setPlayerTiles(prev => [...prev, draggedTile]);
+    setPlayerTiles(prev => [...prev, tile]);
     setDraggedTile(null);
     setDragSource(null);
   }, [draggedTile, dragSource]);

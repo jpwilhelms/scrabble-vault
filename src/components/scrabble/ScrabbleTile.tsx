@@ -1,10 +1,11 @@
 import { Tile } from '@/types/scrabble';
 import { cn } from '@/lib/utils';
+import { useCallback } from 'react';
 
 interface ScrabbleTileProps {
   tile: Tile;
   isDragging?: boolean;
-  onDragStart?: (e: React.DragEvent) => void;
+  onDragStart?: () => void;
   onDragEnd?: () => void;
   className?: string;
   draggable?: boolean;
@@ -20,33 +21,30 @@ export function ScrabbleTile({
   draggable = true,
   size = 'normal',
 }: ScrabbleTileProps) {
-  const handleDragStart = (e: React.DragEvent) => {
+  const isBlank = tile.letter === ' ';
+
+  const handleDragStart = useCallback((e: React.DragEvent) => {
+    if (!draggable) return;
     if (e.dataTransfer) {
       const target = e.currentTarget as HTMLElement;
       const rect = target.getBoundingClientRect();
       e.dataTransfer.effectAllowed = 'move';
       e.dataTransfer.setDragImage(target, rect.width / 2, rect.height / 2);
     }
-    onDragStart?.(e);
-  };
+    onDragStart?.();
+  }, [draggable, onDragStart]);
 
-  const handleTouchStart = (e: React.TouchEvent<HTMLDivElement>) => {
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (!draggable) return;
-    const target = e.currentTarget as HTMLDivElement;
-    target.style.opacity = '0.5';
-    // Erstelle ein DragEvent-ähnliches Objekt für Touch
-    const touch = e.touches[0];
-    const dragEvent = new DragEvent('dragstart', {
-      clientX: touch.clientX,
-      clientY: touch.clientY,
-    });
-    onDragStart?.(dragEvent as any);
-  };
+    // Verhindere Scroll während Drag
+    e.stopPropagation();
+    onDragStart?.();
+  }, [draggable, onDragStart]);
 
-  const handleTouchEnd = () => {
+  const handleTouchEnd = useCallback(() => {
     if (!draggable) return;
     onDragEnd?.();
-  };
+  }, [draggable, onDragEnd]);
 
   return (
     <div
@@ -58,7 +56,7 @@ export function ScrabbleTile({
       className={cn(
         "relative aspect-square bg-gradient-to-br from-scrabble-tileLight to-scrabble-tile",
         "rounded-md shadow-md select-none",
-        draggable && "cursor-move touch-manipulation",
+        draggable && "cursor-move",
         "border border-scrabble-tile/20",
         "transition-all duration-200",
         "hover:scale-105 hover:shadow-lg active:scale-95",
@@ -66,11 +64,14 @@ export function ScrabbleTile({
         className
       )}
       style={{
-        boxShadow: '0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3)'
+        boxShadow: '0 2px 4px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.3)',
+        touchAction: draggable ? 'none' : 'auto',
+        WebkitTouchCallout: 'none',
+        WebkitUserSelect: 'none',
       }}
     >
       <div className="absolute inset-0 flex items-center justify-center">
-        {tile.letter !== ' ' && (
+        {!isBlank && (
           <span className={cn(
             "font-extrabold text-black",
             size === 'small' ? "text-lg" : "text-2xl"
@@ -79,7 +80,7 @@ export function ScrabbleTile({
           </span>
         )}
       </div>
-      {tile.letter !== ' ' && (
+      {!isBlank && (
         <span 
           className={cn(
             "absolute font-bold text-black/70",
