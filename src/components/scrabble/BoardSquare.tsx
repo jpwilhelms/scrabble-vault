@@ -1,4 +1,4 @@
-import { BoardSquare as BoardSquareType } from '@/types/scrabble';
+import { BoardSquare as BoardSquareType, Tile } from '@/types/scrabble';
 import { getPremiumLabel, getPremiumColor } from '@/utils/scrabbleBoard';
 import { ScrabbleTile } from './ScrabbleTile';
 import { cn } from '@/lib/utils';
@@ -8,12 +8,29 @@ interface BoardSquareProps {
   onDrop: (x: number, y: number) => void;
   onDragOver: (e: React.DragEvent) => void;
   isDropTarget?: boolean;
+  isCurrentTurn?: boolean;
+  onTileDragStart?: (tile: Tile, fromX: number, fromY: number) => void;
+  onTileDragEnd?: () => void;
 }
 
-export function BoardSquare({ square, onDrop, onDragOver, isDropTarget }: BoardSquareProps) {
+export function BoardSquare({ 
+  square, 
+  onDrop, 
+  onDragOver, 
+  isDropTarget,
+  isCurrentTurn = false,
+  onTileDragStart,
+  onTileDragEnd
+}: BoardSquareProps) {
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     onDrop(square.x, square.y);
+  };
+
+  const handleTileDragStart = () => {
+    if (square.tile && isCurrentTurn && onTileDragStart) {
+      onTileDragStart(square.tile, square.x, square.y);
+    }
   };
 
   return (
@@ -37,7 +54,13 @@ export function BoardSquare({ square, onDrop, onDragOver, isDropTarget }: BoardS
       )}
       {square.tile && (
         <div className="absolute inset-0">
-          <ScrabbleTile tile={square.tile} draggable={false} size="small" />
+          <ScrabbleTile 
+            tile={square.tile} 
+            draggable={isCurrentTurn} 
+            size="small"
+            onDragStart={handleTileDragStart}
+            onDragEnd={onTileDragEnd}
+          />
         </div>
       )}
     </div>
