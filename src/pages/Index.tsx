@@ -29,12 +29,21 @@ const Index = () => {
     setTileBag([...tileBag]);
   }, []);
 
+  const [dragSource, setDragSource] = useState<{ type: 'rack' | 'board'; x?: number; y?: number } | null>(null);
+
   const handleTileDragStart = useCallback((tile: Tile) => {
     setDraggedTile(tile);
+    setDragSource({ type: 'rack' });
+  }, []);
+
+  const handleBoardTileDragStart = useCallback((tile: Tile, fromX: number, fromY: number) => {
+    setDraggedTile(tile);
+    setDragSource({ type: 'board', x: fromX, y: fromY });
   }, []);
 
   const handleTileDragEnd = useCallback(() => {
     setDraggedTile(null);
+    setDragSource(null);
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -45,14 +54,26 @@ const Index = () => {
     if (!draggedTile) return;
     if (board[y][x].tile) return;
 
-    // Tile vom Rack entfernen
-    setPlayerTiles(prev => prev.filter(t => t.id !== draggedTile.id));
+    // Wenn vom Board gezogen, altes Feld leeren
+    if (dragSource?.type === 'board' && dragSource.x !== undefined && dragSource.y !== undefined) {
+      setBoard(prev => {
+        const newBoard = prev.map(row => [...row]);
+        newBoard[dragSource.y!][dragSource.x!] = { ...newBoard[dragSource.y!][dragSource.x!], tile: undefined };
+        return newBoard;
+      });
+      // Update placedTiles
+      setPlacedTiles(prev => prev.filter(p => !(p.x === dragSource.x && p.y === dragSource.y)));
+    } else {
+      // Tile vom Rack entfernen
+      setPlayerTiles(prev => prev.filter(t => t.id !== draggedTile.id));
+    }
 
     // Prüfe ob es ein Blanko-Stein ist
-    if (draggedTile.letter === '?') {
+    if (draggedTile.letter === ' ') {
       // Öffne Dialog zur Buchstabenauswahl
       setBlankTileDialog({ open: true, x, y, tile: draggedTile });
       setDraggedTile(null);
+      setDragSource(null);
       return;
     }
 
@@ -67,7 +88,28 @@ const Index = () => {
     setPlacedTiles(prev => [...prev, { x, y, tile: draggedTile }]);
 
     setDraggedTile(null);
-  }, [draggedTile, board]);
+    setDragSource(null);
+  }, [draggedTile, board, dragSource]);
+
+  const handleDropToRack = useCallback(() => {
+    if (!draggedTile) return;
+    if (dragSource?.type !== 'board') return;
+
+    // Tile vom Board entfernen
+    if (dragSource.x !== undefined && dragSource.y !== undefined) {
+      setBoard(prev => {
+        const newBoard = prev.map(row => [...row]);
+        newBoard[dragSource.y!][dragSource.x!] = { ...newBoard[dragSource.y!][dragSource.x!], tile: undefined };
+        return newBoard;
+      });
+      setPlacedTiles(prev => prev.filter(p => !(p.x === dragSource.x && p.y === dragSource.y)));
+    }
+
+    // Tile ins Rack legen
+    setPlayerTiles(prev => [...prev, draggedTile]);
+    setDraggedTile(null);
+    setDragSource(null);
+  }, [draggedTile, dragSource]);
 
   const handleBlankTileSelect = useCallback((letter: string) => {
     if (!blankTileDialog) return;
@@ -245,14 +287,20 @@ const Index = () => {
             <div className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 lg:p-4 border-2 lg:border-4 border-border mx-auto max-w-full">
               <div className="grid grid-cols-15 gap-0 w-full">
                 {board.map((row, y) =>
-                  row.map((square, x) => (
-                    <BoardSquare
-                      key={`${x}-${y}`}
-                      square={square}
-                      onDrop={handleDrop}
-                      onDragOver={handleDragOver}
-                    />
-                  ))
+                  row.map((square, x) => {
+                    const isCurrentTurn = placedTiles.some(p => p.x === x && p.y === y);
+                    return (
+                      <BoardSquare
+                        key={`${x}-${y}`}
+                        square={square}
+                        onDrop={handleDrop}
+                        onDragOver={handleDragOver}
+                        isCurrentTurn={isCurrentTurn}
+                        onTileDragStart={handleBoardTileDragStart}
+                        onTileDragEnd={handleTileDragEnd}
+                      />
+                    );
+                  })
                 )}
               </div>
             </div>
@@ -264,6 +312,7 @@ const Index = () => {
               tiles={playerTiles}
               onTileDragStart={handleTileDragStart}
               onTileDragEnd={handleTileDragEnd}
+              onDropToRack={handleDropToRack}
             />
             
             <GameControls
