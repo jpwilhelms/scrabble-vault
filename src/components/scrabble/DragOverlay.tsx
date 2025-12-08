@@ -10,14 +10,14 @@ export function DragOverlay({ tile, position }: DragOverlayProps) {
   if (!tile || !position) return null;
 
   const isBlank = tile.letter === ' ';
-  const size = 64; // 2x größer für bessere Sichtbarkeit unter dem Finger
+  const size = 56;
 
   return (
     <div
       className="fixed pointer-events-none z-50"
       style={{
         left: position.x - size / 2,
-        top: position.y - size - 10, // Über dem Finger positionieren
+        top: position.y - size / 2, // Zentriert unter dem Finger
         width: size,
         height: size,
       }}
