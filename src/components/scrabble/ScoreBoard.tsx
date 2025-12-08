@@ -1,19 +1,34 @@
-interface ScoreBoardProps {
-  score: number;
-  lastWord?: string;
-  lastPoints?: number;
+interface WordScore {
+  word: string;
+  points: number;
 }
 
-export function ScoreBoard({ score, lastWord, lastPoints }: ScoreBoardProps) {
+interface ScoreBoardProps {
+  score: number;
+  lastWords?: WordScore[];
+  bingoBonus?: boolean;
+}
+
+export function ScoreBoard({ score, lastWords, bingoBonus }: ScoreBoardProps) {
   return (
-    <div className="bg-card rounded-lg shadow-lg p-6 border-2 border-border">
-      <h2 className="text-2xl font-bold text-foreground mb-4">Punktestand</h2>
-      <div className="text-5xl font-bold text-primary mb-4">{score}</div>
-      {lastWord && lastPoints && (
-        <div className="text-sm text-muted-foreground">
-          Letztes Wort: <span className="font-semibold text-foreground">{lastWord}</span> ({lastPoints} Punkte)
+    <div className="bg-card rounded-lg shadow-lg p-3 sm:p-4 border-2 border-border">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-lg sm:text-xl font-bold text-foreground">Punktestand</h2>
+          {lastWords && lastWords.length > 0 && (
+            <div className="text-xs sm:text-sm text-muted-foreground mt-1">
+              {lastWords.map((w, i) => (
+                <span key={i}>
+                  {i > 0 && ' + '}
+                  <span className="font-semibold text-foreground">{w.word}</span> ({w.points}P)
+                </span>
+              ))}
+              {bingoBonus && <span className="text-accent font-bold"> +50 Bingo!</span>}
+            </div>
+          )}
         </div>
-      )}
+        <div className="text-3xl sm:text-4xl font-bold text-primary">{score}</div>
+      </div>
     </div>
   );
 }

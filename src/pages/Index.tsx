@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { BoardSquare as BoardSquareType, Tile, PlayedWord } from '@/types/scrabble';
 import { createBoard } from '@/utils/scrabbleBoard';
 import { generateTileBag, drawTiles } from '@/utils/tileGenerator';
+import { calculateTotalPoints } from '@/utils/wordScoring';
 import { BoardSquare } from '@/components/scrabble/BoardSquare';
 import { PlayerRack } from '@/components/scrabble/PlayerRack';
 import { ScoreBoard } from '@/components/scrabble/ScoreBoard';
@@ -12,14 +13,19 @@ import { useTouchDrag } from '@/hooks/useTouchDrag';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
+interface WordScore {
+  word: string;
+  points: number;
+}
+
 const Index = () => {
   const [board, setBoard] = useState<BoardSquareType[][]>(() => createBoard());
   const [tileBag, setTileBag] = useState<Tile[]>(() => generateTileBag());
   const [playerTiles, setPlayerTiles] = useState<Tile[]>([]);
   const [score, setScore] = useState(0);
-  const [lastWord, setLastWord] = useState<string>();
-  const [lastPoints, setLastPoints] = useState<number>();
-  const [placedTiles, setPlacedTiles] = useState<Array<{ x: number; y: number; tile: Tile }>>([]);
+  const [lastWords, setLastWords] = useState<WordScore[]>([]);
+  const [lastBingo, setLastBingo] = useState(false);
+  const [placedTiles, setPlacedTiles] = useState<Array<{ x: number; y: number; tile: Tile; originalBlank?: boolean }>>([]);
   const [hasFirstMove, setHasFirstMove] = useState(false);
   const [blankTileDialog, setBlankTileDialog] = useState<{ open: boolean; x: number; y: number; tile: Tile } | null>(null);
 
@@ -62,14 +68,22 @@ const Index = () => {
   }, [startDrag]);
 
   const handleBoardTileDragStart = useCallback((tile: Tile, x: number, y: number, position: { x: number; y: number }) => {
-    startDrag(tile, { type: 'board', x, y }, position);
-  }, [startDrag]);
+    // Prüfe ob es ein Blanko-Stein ist der erneut bewegt wird
+    const placedInfo = placedTiles.find(p => p.x === x && p.y === y);
+    const isOriginalBlank = placedInfo?.originalBlank || tile.points === 0;
+    
+    startDrag(
+      isOriginalBlank ? { ...tile, letter: ' ', points: 0 } : tile, 
+      { type: 'board', x, y }, 
+      position
+    );
+  }, [startDrag, placedTiles]);
 
   const handleDragMove = useCallback((position: { x: number; y: number }) => {
     updatePosition(position);
   }, [updatePosition]);
 
-  const findDropTarget = useCallback((x: number, y: number): { type: 'board'; x: number; y: number } | { type: 'rack' } | null => {
+  const findDropTarget = useCallback((x: number, y: number): { type: 'board'; x: number; y: number } | { type: 'rack'; index?: number } | null => {
     const element = document.elementFromPoint(x, y);
     if (!element) return null;
 
@@ -81,7 +95,14 @@ const Index = () => {
       return { type: 'board', x: bx, y: by };
     }
 
-    // Check for rack
+    // Check for rack slot
+    const rackSlot = element.closest('[data-rack-index]');
+    if (rackSlot) {
+      const index = parseInt(rackSlot.getAttribute('data-rack-index') || '0');
+      return { type: 'rack', index };
+    }
+
+    // Check for rack container
     const rack = element.closest('[data-drop-target="rack"]');
     if (rack) {
       return { type: 'rack' };
@@ -138,21 +159,45 @@ const Index = () => {
       });
       setPlacedTiles(prev => [...prev, { x, y, tile }]);
 
-    } else if (dropTarget?.type === 'rack' && source?.type === 'board') {
-      // Return to rack from board
-      if (source.x !== undefined && source.y !== undefined) {
+    } else if (dropTarget?.type === 'rack') {
+      if (source?.type === 'board' && source.x !== undefined && source.y !== undefined) {
+        // Return to rack from board
+        const placedInfo = placedTiles.find(p => p.x === source.x && p.y === source.y);
+        const originalTile = placedInfo?.originalBlank ? { ...tile, letter: ' ', points: 0 } : tile;
+        
         setBoard(prev => {
           const newBoard = prev.map(row => [...row]);
           newBoard[source.y!][source.x!] = { ...newBoard[source.y!][source.x!], tile: undefined };
           return newBoard;
         });
         setPlacedTiles(prev => prev.filter(p => !(p.x === source.x && p.y === source.y)));
-        setPlayerTiles(prev => [...prev, tile]);
+        
+        if (dropTarget.index !== undefined) {
+          // Insert at specific position
+          setPlayerTiles(prev => {
+            const newTiles = prev.filter(t => t.id !== originalTile.id);
+            newTiles.splice(dropTarget.index!, 0, originalTile);
+            return newTiles;
+          });
+        } else {
+          setPlayerTiles(prev => [...prev, originalTile]);
+        }
+      } else if (source?.type === 'rack' && dropTarget.index !== undefined) {
+        // Reorder within rack
+        setPlayerTiles(prev => {
+          const currentIndex = prev.findIndex(t => t.id === tile.id);
+          if (currentIndex === -1) return prev;
+          
+          const newTiles = [...prev];
+          newTiles.splice(currentIndex, 1);
+          newTiles.splice(dropTarget.index!, 0, tile);
+          return newTiles;
+        });
       }
     }
 
     endDrag();
-  }, [board, endDrag, findDropTarget, getDragState]);
+  }, [board, endDrag, findDropTarget, getDragState, placedTiles]);
 
   const handleBlankTileSelect = useCallback((letter: string) => {
     if (!blankTileDialog) return;
@@ -171,7 +216,7 @@ const Index = () => {
       return newBoard;
     });
 
-    setPlacedTiles(prev => [...prev, { x, y, tile: newTile }]);
+    setPlacedTiles(prev => [...prev, { x, y, tile: newTile, originalBlank: true }]);
     setBlankTileDialog(null);
   }, [blankTileDialog]);
 
@@ -181,32 +226,9 @@ const Index = () => {
     setBlankTileDialog(null);
   }, [blankTileDialog]);
 
-  const calculateWordPoints = useCallback((tiles: Array<{ x: number; y: number; tile: Tile }>) => {
-    let points = 0;
-    let wordMultiplier = 1;
-
-    tiles.forEach(({ x, y, tile }) => {
-      const premium = board[y][x].premium;
-      let tilePoints = tile.points;
-
-      if (premium === 'DL') {
-        tilePoints *= 2;
-      } else if (premium === 'TL') {
-        tilePoints *= 3;
-      } else if (premium === 'DW') {
-        wordMultiplier *= 2;
-      } else if (premium === 'TW' || premium === 'STAR') {
-        wordMultiplier *= 3;
-      }
-
-      points += tilePoints;
-    });
-
-    return points * wordMultiplier;
-  }, [board]);
-
-  const extractWord = useCallback((tiles: Array<{ x: number; y: number; tile: Tile }>): { word: string; direction: 'horizontal' | 'vertical' } | null => {
+  const extractWordDirection = useCallback((tiles: Array<{ x: number; y: number; tile: Tile }>): 'horizontal' | 'vertical' | null => {
     if (tiles.length === 0) return null;
+    if (tiles.length === 1) return 'horizontal';
 
     const sortedByX = [...tiles].sort((a, b) => a.x - b.x);
     const sortedByY = [...tiles].sort((a, b) => a.y - b.y);
@@ -215,21 +237,13 @@ const Index = () => {
       i === 0 || tile.y === arr[i - 1].y
     );
 
+    if (isHorizontal) return 'horizontal';
+    
     const isVertical = sortedByY.every((tile, i, arr) => 
       i === 0 || tile.x === arr[i - 1].x
     );
 
-    if (!isHorizontal && !isVertical) {
-      return null;
-    }
-
-    const sorted = isHorizontal ? sortedByX : sortedByY;
-    const word = sorted.map(t => t.tile.letter).join('');
-    
-    return {
-      word,
-      direction: isHorizontal ? 'horizontal' : 'vertical'
-    };
+    return isVertical ? 'vertical' : null;
   }, []);
 
   const handleConfirmWord = useCallback(async () => {
@@ -238,8 +252,8 @@ const Index = () => {
       return;
     }
 
-    const wordData = extractWord(placedTiles);
-    if (!wordData) {
+    const direction = extractWordDirection(placedTiles);
+    if (!direction) {
       toast.error('Die Buchstaben müssen in einer Reihe liegen');
       return;
     }
@@ -252,47 +266,54 @@ const Index = () => {
       }
     }
 
-    const points = calculateWordPoints(placedTiles);
-    const newScore = score + points;
+    // Berechne alle Wörter und Punkte
+    const { totalPoints, words } = calculateTotalPoints(board, placedTiles);
+    const isBingo = placedTiles.length === 7;
+    const newScore = score + totalPoints;
 
-    // Speichere in Datenbank (fehlertoleranter)
-    const playedWord: PlayedWord = {
-      word: wordData.word,
-      points,
-      position_x: placedTiles[0].x,
-      position_y: placedTiles[0].y,
-      direction: wordData.direction
-    };
+    // Speichere in Datenbank
+    for (const word of words) {
+      const playedWord: PlayedWord = {
+        word: word.word,
+        points: word.points,
+        position_x: placedTiles[0].x,
+        position_y: placedTiles[0].y,
+        direction
+      };
 
-    try {
-      const { error } = await supabase
-        .from('played_words')
-        .insert([playedWord]);
-   
-      if (error) {
-        console.error('Datenbankfehler:', error);
-        // Spiel trotzdem fortsetzen
+      try {
+        const { error } = await supabase
+          .from('played_words')
+          .insert([playedWord]);
+     
+        if (error) {
+          console.error('Datenbankfehler:', error);
+        }
+      } catch (e) {
+        console.error('Netzwerkfehler:', e);
       }
-    } catch (e) {
-      console.error('Netzwerkfehler:', e);
-      // Spiel trotzdem fortsetzen
     }
  
     setHasFirstMove(true);
     setScore(newScore);
-    setLastWord(wordData.word);
-    setLastPoints(points);
+    setLastWords(words);
+    setLastBingo(isBingo);
     setPlacedTiles([]);
 
     const newTiles = drawTiles(tileBag, placedTiles.length);
     setPlayerTiles(prev => [...prev, ...newTiles]);
     setTileBag([...tileBag]);
 
-    toast.success(`"${wordData.word}" gelegt für ${points} Punkte!`);
-  }, [placedTiles, calculateWordPoints, extractWord, score, tileBag, hasFirstMove]);
+    const wordList = words.map(w => w.word).join(', ');
+    const bonusText = isBingo ? ' (+50 Bingo!)' : '';
+    toast.success(`${wordList} für ${totalPoints} Punkte${bonusText}`);
+  }, [placedTiles, extractWordDirection, score, tileBag, hasFirstMove, board]);
 
   const handleReset = useCallback(() => {
-    const tilesToReturn = placedTiles.map(({ tile }) => tile);
+    // Blanko-Steine zurück als leere Steine
+    const tilesToReturn = placedTiles.map(({ tile, originalBlank }) => 
+      originalBlank ? { ...tile, letter: ' ', points: 0 } : tile
+    );
     setPlayerTiles(prev => [...prev, ...tilesToReturn]);
 
     setBoard(prev => {
@@ -304,20 +325,20 @@ const Index = () => {
     });
 
     setPlacedTiles([]);
-    toast.info('Buchstaben zurückgesetzt');
+    // Kein Toast - direkt zurücksetzen
   }, [placedTiles]);
 
   return (
-    <div className="h-screen overflow-hidden bg-background p-2 sm:p-4 lg:p-8">
+    <div className="h-screen overflow-hidden bg-background p-2 sm:p-4">
       <div className="max-w-7xl mx-auto h-full flex flex-col">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-foreground mb-2 sm:mb-4 lg:mb-8 text-center">
+        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-2 text-center">
           Scrabble
         </h1>
         
-        <div className="flex flex-col gap-3 sm:gap-4 lg:gap-6 flex-1">
+        <div className="flex flex-col gap-2 sm:gap-3 flex-1">
           {/* Spielfeld */}
           <div className="w-full flex-shrink-0">
-            <div className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 lg:p-4 border-2 lg:border-4 border-border mx-auto max-w-full">
+            <div className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 border-2 border-border mx-auto max-w-full">
               <div className="grid grid-cols-15 gap-0 w-full">
                 {board.map((row, y) =>
                   row.map((square, x) => {
@@ -341,8 +362,8 @@ const Index = () => {
             </div>
           </div>
 
-          {/* Rack und Controls */}
-          <div className="space-y-2 sm:space-y-3 flex-shrink-0">
+          {/* Rack, Controls und Score */}
+          <div className="space-y-2 flex-shrink-0">
             <PlayerRack
               tiles={playerTiles}
               draggedTileId={dragState.source?.type === 'rack' ? dragState.tile?.id : null}
@@ -356,14 +377,11 @@ const Index = () => {
               onReset={handleReset}
               canConfirm={placedTiles.length > 0}
             />
-          </div>
 
-          {/* Punktestand */}
-          <div className="mt-auto">
             <ScoreBoard 
               score={score} 
-              lastWord={lastWord} 
-              lastPoints={lastPoints} 
+              lastWords={lastWords.length > 0 ? lastWords : undefined}
+              bingoBonus={lastBingo}
             />
           </div>
         </div>

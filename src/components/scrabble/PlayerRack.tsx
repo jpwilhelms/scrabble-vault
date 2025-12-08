@@ -1,6 +1,6 @@
 import { Tile } from '@/types/scrabble';
 import { ScrabbleTile } from './ScrabbleTile';
-import { useRef } from 'react';
+import { useRef, useCallback } from 'react';
 
 interface PlayerRackProps {
   tiles: Tile[];
@@ -8,6 +8,7 @@ interface PlayerRackProps {
   onTileDragStart: (tile: Tile, position: { x: number; y: number }) => void;
   onTileDragMove: (position: { x: number; y: number }) => void;
   onTileDragEnd: (position: { x: number; y: number }) => void;
+  onReorderTiles?: (fromIndex: number, toIndex: number) => void;
 }
 
 export function PlayerRack({ 
@@ -16,8 +17,14 @@ export function PlayerRack({
   onTileDragStart, 
   onTileDragMove,
   onTileDragEnd,
+  onReorderTiles,
 }: PlayerRackProps) {
   const rackRef = useRef<HTMLDivElement>(null);
+  const tileRefs = useRef<(HTMLDivElement | null)[]>([]);
+
+  const handleDragStart = useCallback((tile: Tile, index: number, pos: { x: number; y: number }) => {
+    onTileDragStart(tile, pos);
+  }, [onTileDragStart]);
 
   return (
     <div 
@@ -27,15 +34,21 @@ export function PlayerRack({
     >
       <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-2">Deine Buchstaben</h3>
       <div className="grid grid-cols-7 gap-1 sm:gap-2">
-        {tiles.map((tile) => (
-          <ScrabbleTile
+        {tiles.map((tile, index) => (
+          <div
             key={tile.id}
-            tile={tile}
-            isDragging={draggedTileId === tile.id}
-            onDragStart={(pos) => onTileDragStart(tile, pos)}
-            onDragMove={onTileDragMove}
-            onDragEnd={onTileDragEnd}
-          />
+            ref={el => tileRefs.current[index] = el}
+            data-rack-index={index}
+            className="relative"
+          >
+            <ScrabbleTile
+              tile={tile}
+              isDragging={draggedTileId === tile.id}
+              onDragStart={(pos) => handleDragStart(tile, index, pos)}
+              onDragMove={onTileDragMove}
+              onDragEnd={onTileDragEnd}
+            />
+          </div>
         ))}
       </div>
     </div>
