@@ -94,7 +94,7 @@ export function ScrabbleTile({
           className={cn(
             "absolute font-bold text-black/70",
             size === 'small'
-              ? "right-0 bottom-0 text-[7px]"
+              ? "right-px bottom-px text-[5px] leading-none"
               : "right-0.5 bottom-0 text-xs"
           )}
         >
