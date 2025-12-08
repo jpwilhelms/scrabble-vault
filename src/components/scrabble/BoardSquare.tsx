@@ -26,6 +26,8 @@ export function BoardSquare({
     }
   };
 
+  const isCenter = square.x === 7 && square.y === 7;
+
   return (
     <div
       data-board-x={square.x}
@@ -39,9 +41,14 @@ export function BoardSquare({
     >
       {!square.tile && square.premium && square.premium !== 'STAR' && (
         <div className="absolute inset-0 flex items-center justify-center p-0.5">
-          <span className="text-xs leading-tight font-extrabold text-center text-white">
+          <span className="text-[8px] sm:text-xs leading-tight font-extrabold text-center text-white">
             {getPremiumLabel(square.premium)}
           </span>
+        </div>
+      )}
+      {!square.tile && isCenter && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className="text-xl sm:text-2xl text-scrabble-doubleWord">★</span>
         </div>
       )}
       {square.tile && (

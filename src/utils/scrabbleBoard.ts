@@ -63,7 +63,7 @@ export function getPremiumColor(premium: PremiumType): string {
     case 'TW':
       return 'bg-scrabble-tripleWord';
     case 'STAR':
-      return 'bg-scrabble-board';
+      return 'bg-scrabble-doubleWord/30'; // Stern-Feld hat 2W-Funktion
     default:
       return 'bg-scrabble-board';
   }

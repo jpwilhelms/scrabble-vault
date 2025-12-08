@@ -8,8 +8,13 @@ interface GameControlsProps {
 }
 
 export function GameControls({ onConfirm, onReset, canConfirm }: GameControlsProps) {
+  const handleReset = () => {
+    // Direkt zurücksetzen ohne Toast
+    onReset();
+  };
+
   return (
-    <div className="flex gap-4">
+    <div className="flex gap-2 sm:gap-4">
       <Button
         onClick={onConfirm}
         disabled={!canConfirm}
@@ -20,7 +25,7 @@ export function GameControls({ onConfirm, onReset, canConfirm }: GameControlsPro
         Wort legen
       </Button>
       <Button
-        onClick={onReset}
+        onClick={handleReset}
         variant="outline"
         size="lg"
       >
