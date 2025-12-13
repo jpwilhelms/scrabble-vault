@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -21,17 +20,11 @@ const GERMAN_LETTERS = [
 ];
 
 export function BlankTileDialog({ open, onSelect, onCancel }: BlankTileDialogProps) {
-  const [selectedLetter, setSelectedLetter] = useState<string>('');
-
-  const handleConfirm = () => {
-    if (selectedLetter) {
-      onSelect(selectedLetter);
-      setSelectedLetter('');
-    }
+  const handleSelect = (letter: string) => {
+    onSelect(letter);
   };
 
   const handleCancel = () => {
-    setSelectedLetter('');
     onCancel();
   };
 
@@ -41,27 +34,24 @@ export function BlankTileDialog({ open, onSelect, onCancel }: BlankTileDialogPro
         <DialogHeader>
           <DialogTitle>Blanko-Stein: Buchstabe wählen</DialogTitle>
           <DialogDescription>
-            Wähle den Buchstaben, den dieser Blanko-Stein repräsentieren soll (0 Punkte).
+            Tippe auf den Buchstaben, den dieser Blanko-Stein repräsentieren soll (0 Punkte).
           </DialogDescription>
         </DialogHeader>
         <div className="grid grid-cols-7 gap-2 py-4">
           {GERMAN_LETTERS.map((letter) => (
             <Button
               key={letter}
-              variant={selectedLetter === letter ? 'default' : 'outline'}
+              variant="outline"
               className="aspect-square p-0 text-lg font-bold"
-              onClick={() => setSelectedLetter(letter)}
+              onClick={() => handleSelect(letter)}
             >
               {letter}
             </Button>
           ))}
         </div>
-        <div className="flex gap-2 justify-end">
+        <div className="flex justify-end">
           <Button variant="outline" onClick={handleCancel}>
             Abbrechen
-          </Button>
-          <Button onClick={handleConfirm} disabled={!selectedLetter}>
-            Bestätigen
           </Button>
         </div>
       </DialogContent>
