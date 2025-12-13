@@ -132,6 +132,10 @@ const Index = () => {
         return;
       }
 
+      // Check if this is an original blank tile being moved
+      const isOriginalBlank = source?.type === 'board' && 
+        placedTiles.find(p => p.x === source.x && p.y === source.y)?.originalBlank;
+
       // Remove from source
       if (source?.type === 'board' && source.x !== undefined && source.y !== undefined) {
         setBoard(prev => {
@@ -141,12 +145,19 @@ const Index = () => {
         });
         setPlacedTiles(prev => prev.filter(p => !(p.x === source.x && p.y === source.y)));
       } else {
-        setPlayerTiles(prev => prev.filter(t => t.id !== tile.id));
+        // Remove from rack but keep position by replacing with null marker
+        setPlayerTiles(prev => {
+          const index = prev.findIndex(t => t.id === tile.id);
+          if (index === -1) return prev;
+          const newTiles = [...prev];
+          newTiles.splice(index, 1);
+          return newTiles;
+        });
       }
 
-      // Check for blank tile
-      if (tile.letter === ' ') {
-        setBlankTileDialog({ open: true, x, y, tile });
+      // Check for blank tile - always show dialog for blanks (original or current)
+      if (tile.letter === ' ' || isOriginalBlank) {
+        setBlankTileDialog({ open: true, x, y, tile: { ...tile, letter: ' ', points: 0 } });
         endDrag();
         return;
       }
@@ -382,6 +393,7 @@ const Index = () => {
               score={score} 
               lastWords={lastWords.length > 0 ? lastWords : undefined}
               bingoBonus={lastBingo}
+              tilesRemaining={tileBag.length}
             />
           </div>
         </div>

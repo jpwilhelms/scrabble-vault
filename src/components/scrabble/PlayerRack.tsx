@@ -34,22 +34,27 @@ export function PlayerRack({
     >
       <h3 className="text-xs sm:text-sm font-semibold text-foreground mb-2">Deine Buchstaben</h3>
       <div className="grid grid-cols-7 gap-1 sm:gap-2">
-        {tiles.map((tile, index) => (
-          <div
-            key={tile.id}
-            ref={el => tileRefs.current[index] = el}
-            data-rack-index={index}
-            className="relative"
-          >
-            <ScrabbleTile
-              tile={tile}
-              isDragging={draggedTileId === tile.id}
-              onDragStart={(pos) => handleDragStart(tile, index, pos)}
-              onDragMove={onTileDragMove}
-              onDragEnd={onTileDragEnd}
-            />
-          </div>
-        ))}
+        {Array.from({ length: 7 }).map((_, index) => {
+          const tile = tiles[index];
+          return (
+            <div
+              key={tile?.id ?? `empty-${index}`}
+              ref={el => tileRefs.current[index] = el}
+              data-rack-index={index}
+              className="relative aspect-square"
+            >
+              {tile && (
+                <ScrabbleTile
+                  tile={tile}
+                  isDragging={draggedTileId === tile.id}
+                  onDragStart={(pos) => handleDragStart(tile, index, pos)}
+                  onDragMove={onTileDragMove}
+                  onDragEnd={onTileDragEnd}
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
