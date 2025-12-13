@@ -7,9 +7,10 @@ interface ScoreBoardProps {
   score: number;
   lastWords?: WordScore[];
   bingoBonus?: boolean;
+  tilesRemaining: number;
 }
 
-export function ScoreBoard({ score, lastWords, bingoBonus }: ScoreBoardProps) {
+export function ScoreBoard({ score, lastWords, bingoBonus, tilesRemaining }: ScoreBoardProps) {
   return (
     <div className="bg-card rounded-lg shadow-lg p-3 sm:p-4 border-2 border-border">
       <div className="flex items-center justify-between">
@@ -26,6 +27,9 @@ export function ScoreBoard({ score, lastWords, bingoBonus }: ScoreBoardProps) {
               {bingoBonus && <span className="text-accent font-bold"> +50 Bingo!</span>}
             </div>
           )}
+          <div className="text-xs text-muted-foreground mt-1">
+            Steine im Beutel: <span className="font-semibold">{tilesRemaining}</span>
+          </div>
         </div>
         <div className="text-3xl sm:text-4xl font-bold text-primary">{score}</div>
       </div>
