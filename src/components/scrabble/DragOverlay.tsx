@@ -10,7 +10,7 @@ export function DragOverlay({ tile, position }: DragOverlayProps) {
   if (!tile || !position) return null;
 
   const isBlank = tile.letter === ' ';
-  const size = 56;
+  const size = 72;
 
   return (
     <div

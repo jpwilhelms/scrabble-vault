@@ -41,7 +41,7 @@ export function BoardSquare({
     >
       {!square.tile && square.premium && square.premium !== 'STAR' && (
         <div className="absolute inset-0 flex items-center justify-center p-0.5">
-          <span className="text-[8px] sm:text-xs leading-tight font-extrabold text-center text-white">
+          <span className="text-[10px] sm:text-sm leading-tight font-extrabold text-center text-white drop-shadow-sm">
             {getPremiumLabel(square.premium)}
           </span>
         </div>
