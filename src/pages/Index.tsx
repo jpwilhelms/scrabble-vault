@@ -21,7 +21,7 @@ interface WordScore {
 const Index = () => {
   const [board, setBoard] = useState<BoardSquareType[][]>(() => createBoard());
   const [tileBag, setTileBag] = useState<Tile[]>(() => generateTileBag());
-  const [playerTiles, setPlayerTiles] = useState<Tile[]>([]);
+  const [playerTiles, setPlayerTiles] = useState<(Tile | null)[]>(() => Array(7).fill(null));
   const [score, setScore] = useState(0);
   const [lastWords, setLastWords] = useState<WordScore[]>([]);
   const [lastBingo, setLastBingo] = useState(false);
@@ -33,9 +33,14 @@ const Index = () => {
 
   // Initialisiere Spieler-Tiles
   useEffect(() => {
-    const initialTiles = drawTiles(tileBag, 7);
-    setPlayerTiles(initialTiles);
-    setTileBag([...tileBag]);
+    const bagCopy = [...tileBag];
+    const initialTiles = drawTiles(bagCopy, 7);
+    const rack: (Tile | null)[] = Array(7).fill(null);
+    for (let i = 0; i < initialTiles.length; i++) {
+      rack[i] = initialTiles[i];
+    }
+    setPlayerTiles(rack);
+    setTileBag(bagCopy);
   }, []);
 
   // Global mouse move/up handlers for desktop drag
@@ -145,17 +150,18 @@ const Index = () => {
         });
         setPlacedTiles(prev => prev.filter(p => !(p.x === source.x && p.y === source.y)));
       } else {
-        // Remove from rack but keep position by replacing with null marker
+        // Remove from rack but keep position by setting slot to null
         setPlayerTiles(prev => {
-          const index = prev.findIndex(t => t.id === tile.id);
-          if (index === -1) return prev;
           const newTiles = [...prev];
-          newTiles.splice(index, 1);
+          const index = newTiles.findIndex(t => t?.id === tile.id);
+          if (index !== -1) {
+            newTiles[index] = null;
+          }
           return newTiles;
         });
       }
 
-      // Check for blank tile - always show dialog for blanks (original or current)
+      // Check for blank tile - always show dialog for blanks (original oder aktueller)
       if (tile.letter === ' ' || isOriginalBlank) {
         setBlankTileDialog({ open: true, x, y, tile: { ...tile, letter: ' ', points: 0 } });
         endDrag();
@@ -184,24 +190,44 @@ const Index = () => {
         setPlacedTiles(prev => prev.filter(p => !(p.x === source.x && p.y === source.y)));
         
         if (dropTarget.index !== undefined) {
-          // Insert at specific position
+          // Place at specific rack slot if possible, otherwise first empty slot
           setPlayerTiles(prev => {
-            const newTiles = prev.filter(t => t.id !== originalTile.id);
-            newTiles.splice(dropTarget.index!, 0, originalTile);
+            const newTiles = [...prev];
+            const targetIndex = dropTarget.index!;
+            if (!newTiles[targetIndex]) {
+              newTiles[targetIndex] = originalTile;
+            } else {
+              const emptyIndex = newTiles.findIndex(t => t === null);
+              if (emptyIndex !== -1) {
+                newTiles[emptyIndex] = originalTile;
+              } else {
+                newTiles[targetIndex] = originalTile;
+              }
+            }
             return newTiles;
           });
         } else {
-          setPlayerTiles(prev => [...prev, originalTile]);
+          // Drop anywhere on rack: use first empty slot
+          setPlayerTiles(prev => {
+            const newTiles = [...prev];
+            const emptyIndex = newTiles.findIndex(t => t === null);
+            if (emptyIndex !== -1) {
+              newTiles[emptyIndex] = originalTile;
+            }
+            return newTiles;
+          });
         }
       } else if (source?.type === 'rack' && dropTarget.index !== undefined) {
-        // Reorder within rack
+        // Reorder within rack (swap tiles, keep fixed slots)
         setPlayerTiles(prev => {
-          const currentIndex = prev.findIndex(t => t.id === tile.id);
-          if (currentIndex === -1) return prev;
+          const currentIndex = prev.findIndex(t => t?.id === tile.id);
+          const targetIndex = dropTarget.index!;
+          if (currentIndex === -1 || currentIndex === targetIndex) return prev;
           
           const newTiles = [...prev];
-          newTiles.splice(currentIndex, 1);
-          newTiles.splice(dropTarget.index!, 0, tile);
+          const temp = newTiles[targetIndex];
+          newTiles[targetIndex] = tile;
+          newTiles[currentIndex] = temp;
           return newTiles;
         });
       }
@@ -233,7 +259,14 @@ const Index = () => {
 
   const handleBlankTileCancel = useCallback(() => {
     if (!blankTileDialog) return;
-    setPlayerTiles(prev => [...prev, blankTileDialog.tile]);
+    setPlayerTiles(prev => {
+      const newTiles = [...prev];
+      const emptyIndex = newTiles.findIndex(t => t === null);
+      if (emptyIndex !== -1) {
+        newTiles[emptyIndex] = blankTileDialog.tile;
+      }
+      return newTiles;
+    });
     setBlankTileDialog(null);
   }, [blankTileDialog]);
 
@@ -311,9 +344,19 @@ const Index = () => {
     setLastBingo(isBingo);
     setPlacedTiles([]);
 
-    const newTiles = drawTiles(tileBag, placedTiles.length);
-    setPlayerTiles(prev => [...prev, ...newTiles]);
-    setTileBag([...tileBag]);
+    const bagCopy = [...tileBag];
+    const newTiles = drawTiles(bagCopy, placedTiles.length);
+    setPlayerTiles(prev => {
+      const updated = [...prev];
+      let tileIndex = 0;
+      for (let i = 0; i < updated.length && tileIndex < newTiles.length; i++) {
+        if (!updated[i]) {
+          updated[i] = newTiles[tileIndex++];
+        }
+      }
+      return updated;
+    });
+    setTileBag(bagCopy);
 
     const wordList = words.map(w => w.word).join(', ');
     const bonusText = isBingo ? ' (+50 Bingo!)' : '';
@@ -325,7 +368,16 @@ const Index = () => {
     const tilesToReturn = placedTiles.map(({ tile, originalBlank }) => 
       originalBlank ? { ...tile, letter: ' ', points: 0 } : tile
     );
-    setPlayerTiles(prev => [...prev, ...tilesToReturn]);
+    setPlayerTiles(prev => {
+      const newTiles = [...prev];
+      for (const tile of tilesToReturn) {
+        const emptyIndex = newTiles.findIndex(t => t === null);
+        if (emptyIndex !== -1) {
+          newTiles[emptyIndex] = tile;
+        }
+      }
+      return newTiles;
+    });
 
     setBoard(prev => {
       const newBoard = prev.map(row => [...row]);

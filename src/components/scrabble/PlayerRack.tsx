@@ -3,7 +3,7 @@ import { ScrabbleTile } from './ScrabbleTile';
 import { useRef, useCallback } from 'react';
 
 interface PlayerRackProps {
-  tiles: Tile[];
+  tiles: (Tile | null)[];
   draggedTileId?: string | null;
   onTileDragStart: (tile: Tile, position: { x: number; y: number }) => void;
   onTileDragMove: (position: { x: number; y: number }) => void;
