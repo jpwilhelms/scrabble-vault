@@ -218,16 +218,15 @@ const Index = () => {
           });
         }
       } else if (source?.type === 'rack' && dropTarget.index !== undefined) {
-        // Reorder within rack (swap tiles, keep fixed slots)
+        // Reorder within rack (shift tiles to make space, preserve relative order)
         setPlayerTiles(prev => {
           const currentIndex = prev.findIndex(t => t?.id === tile.id);
           const targetIndex = dropTarget.index!;
           if (currentIndex === -1 || currentIndex === targetIndex) return prev;
-          
+
           const newTiles = [...prev];
-          const temp = newTiles[targetIndex];
-          newTiles[targetIndex] = tile;
-          newTiles[currentIndex] = temp;
+          const [movingTile] = newTiles.splice(currentIndex, 1);
+          newTiles.splice(targetIndex, 0, movingTile);
           return newTiles;
         });
       }
