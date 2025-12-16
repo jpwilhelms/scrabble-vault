@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { BoardSquare as BoardSquareType, Tile, PlayedWord } from '@/types/scrabble';
 import { createBoard } from '@/utils/scrabbleBoard';
 import { generateTileBag, drawTiles } from '@/utils/tileGenerator';
@@ -10,8 +11,11 @@ import { GameControls } from '@/components/scrabble/GameControls';
 import { BlankTileDialog } from '@/components/scrabble/BlankTileDialog';
 import { DragOverlay } from '@/components/scrabble/DragOverlay';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { LogIn, LogOut, User } from 'lucide-react';
 
 interface WordScore {
   word: string;
@@ -19,6 +23,7 @@ interface WordScore {
 }
 
 const Index = () => {
+  const { user, loading, signOut } = useAuth();
   const [board, setBoard] = useState<BoardSquareType[][]>(() => createBoard());
   const [tileBag, setTileBag] = useState<Tile[]>(() => generateTileBag());
   const [playerTiles, setPlayerTiles] = useState<(Tile | null)[]>(() => Array(7).fill(null));
@@ -393,9 +398,33 @@ const Index = () => {
   return (
     <div className="h-screen overflow-hidden bg-background p-2 sm:p-4">
       <div className="max-w-7xl mx-auto h-full flex flex-col">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground mb-2 text-center">
-          Scrabble
-        </h1>
+        {/* Header mit Auth */}
+        <div className="flex items-center justify-between mb-2">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
+            Scrabble
+          </h1>
+          <div className="flex items-center gap-2">
+            {loading ? null : user ? (
+              <>
+                <span className="text-sm text-muted-foreground hidden sm:inline">
+                  <User className="w-4 h-4 inline mr-1" />
+                  {user.user_metadata?.username || user.email?.split('@')[0]}
+                </span>
+                <Button variant="outline" size="sm" onClick={() => signOut()}>
+                  <LogOut className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">Abmelden</span>
+                </Button>
+              </>
+            ) : (
+              <Link to="/auth">
+                <Button variant="default" size="sm">
+                  <LogIn className="w-4 h-4 mr-1" />
+                  <span className="hidden sm:inline">Anmelden</span>
+                </Button>
+              </Link>
+            )}
+          </div>
+        </div>
         
         <div className="flex flex-col gap-2 sm:gap-3 flex-1">
           {/* Spielfeld */}
