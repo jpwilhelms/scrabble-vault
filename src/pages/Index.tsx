@@ -15,15 +15,21 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { LogIn, LogOut, User } from 'lucide-react';
+import { LogIn, LogOut, User, ArrowLeft } from 'lucide-react';
+import { MultiplayerLobby } from '@/components/multiplayer/MultiplayerLobby';
 
 interface WordScore {
   word: string;
   points: number;
 }
 
+type GameMode = 'lobby' | 'solo' | 'multiplayer';
+
 const Index = () => {
   const { user, loading, signOut } = useAuth();
+  const [gameMode, setGameMode] = useState<GameMode>('lobby');
+  const [currentGameId, setCurrentGameId] = useState<string | null>(null);
+  
   const [board, setBoard] = useState<BoardSquareType[][]>(() => createBoard());
   const [tileBag, setTileBag] = useState<Tile[]>(() => generateTileBag());
   const [playerTiles, setPlayerTiles] = useState<(Tile | null)[]>(() => Array(7).fill(null));
@@ -36,16 +42,41 @@ const Index = () => {
 
   const { dragState, startDrag, updatePosition, endDrag, getDragState } = useTouchDrag();
 
-  // Initialisiere Spieler-Tiles
+  // Initialisiere Spieler-Tiles für Solo-Spiel
   useEffect(() => {
-    const bagCopy = [...tileBag];
-    const initialTiles = drawTiles(bagCopy, 7);
-    const rack: (Tile | null)[] = Array(7).fill(null);
-    for (let i = 0; i < initialTiles.length; i++) {
-      rack[i] = initialTiles[i];
+    if (gameMode === 'solo') {
+      const bagCopy = [...tileBag];
+      const initialTiles = drawTiles(bagCopy, 7);
+      const rack: (Tile | null)[] = Array(7).fill(null);
+      for (let i = 0; i < initialTiles.length; i++) {
+        rack[i] = initialTiles[i];
+      }
+      setPlayerTiles(rack);
+      setTileBag(bagCopy);
     }
-    setPlayerTiles(rack);
-    setTileBag(bagCopy);
+  }, [gameMode]);
+
+  const handleStartSoloGame = useCallback(() => {
+    setBoard(createBoard());
+    setTileBag(generateTileBag());
+    setPlayerTiles(Array(7).fill(null));
+    setScore(0);
+    setLastWords([]);
+    setLastBingo(false);
+    setPlacedTiles([]);
+    setHasFirstMove(false);
+    setGameMode('solo');
+  }, []);
+
+  const handleSelectGame = useCallback((gameId: string) => {
+    setCurrentGameId(gameId);
+    setGameMode('multiplayer');
+    // TODO: Load game state from database
+  }, []);
+
+  const handleBackToLobby = useCallback(() => {
+    setGameMode('lobby');
+    setCurrentGameId(null);
   }, []);
 
   // Global mouse move/up handlers for desktop drag
@@ -395,14 +426,32 @@ const Index = () => {
     // Kein Toast - direkt zurücksetzen
   }, [placedTiles]);
 
+  // Wenn eingeloggt und im Lobby-Modus, zeige MultiplayerLobby
+  if (user && gameMode === 'lobby') {
+    return (
+      <MultiplayerLobby 
+        onSelectGame={handleSelectGame}
+        onStartSoloGame={handleStartSoloGame}
+      />
+    );
+  }
+
   return (
     <div className="h-screen overflow-hidden bg-background p-2 sm:p-4">
       <div className="max-w-7xl mx-auto h-full flex flex-col">
         {/* Header mit Auth */}
         <div className="flex items-center justify-between mb-2">
-          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
-            Scrabble
-          </h1>
+          <div className="flex items-center gap-2">
+            {user && (
+              <Button variant="ghost" size="sm" onClick={handleBackToLobby}>
+                <ArrowLeft className="w-4 h-4 mr-1" />
+                Lobby
+              </Button>
+            )}
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
+              Scrabble
+            </h1>
+          </div>
           <div className="flex items-center gap-2">
             {loading ? null : user ? (
               <>
