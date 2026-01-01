@@ -12,10 +12,11 @@ import { BlankTileDialog } from '@/components/scrabble/BlankTileDialog';
 import { DragOverlay } from '@/components/scrabble/DragOverlay';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
 import { useAuth } from '@/hooks/useAuth';
+import { useGamePersistence } from '@/hooks/useGamePersistence';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { LogIn, LogOut, User, ArrowLeft } from 'lucide-react';
+import { LogIn, LogOut, User, ArrowLeft, Loader2 } from 'lucide-react';
 import { MultiplayerLobby } from '@/components/multiplayer/MultiplayerLobby';
 
 interface WordScore {
@@ -26,7 +27,7 @@ interface WordScore {
 type GameMode = 'lobby' | 'solo' | 'multiplayer';
 
 const Index = () => {
-  const { user, loading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut } = useAuth();
   const [gameMode, setGameMode] = useState<GameMode>('lobby');
   const [currentGameId, setCurrentGameId] = useState<string | null>(null);
   
@@ -34,6 +35,9 @@ const Index = () => {
   const [tileBag, setTileBag] = useState<Tile[]>(() => generateTileBag());
   const [playerTiles, setPlayerTiles] = useState<(Tile | null)[]>(() => Array(7).fill(null));
   const [score, setScore] = useState(0);
+  const [opponentScore, setOpponentScore] = useState(0);
+  const [opponentName, setOpponentName] = useState('Gegner');
+  const [isMyTurn, setIsMyTurn] = useState(true);
   const [lastWords, setLastWords] = useState<WordScore[]>([]);
   const [lastBingo, setLastBingo] = useState(false);
   const [placedTiles, setPlacedTiles] = useState<Array<{ x: number; y: number; tile: Tile; originalBlank?: boolean }>>([]);
@@ -41,6 +45,28 @@ const Index = () => {
   const [blankTileDialog, setBlankTileDialog] = useState<{ open: boolean; x: number; y: number; tile: Tile } | null>(null);
 
   const { dragState, startDrag, updatePosition, endDrag, getDragState } = useTouchDrag();
+
+  // Game persistence hook for multiplayer
+  const { gameState, loading: gameLoading, saveGame } = useGamePersistence({
+    gameId: currentGameId,
+    userId: user?.id ?? null,
+    enabled: gameMode === 'multiplayer'
+  });
+
+  // Sync local state with loaded game state
+  useEffect(() => {
+    if (gameState && gameMode === 'multiplayer') {
+      setBoard(gameState.board);
+      setTileBag(gameState.tileBag);
+      setPlayerTiles(gameState.playerTiles);
+      setScore(gameState.playerScore);
+      setOpponentScore(gameState.opponentScore);
+      setOpponentName(gameState.opponentName);
+      setIsMyTurn(gameState.isMyTurn);
+      setHasFirstMove(gameState.hasFirstMove);
+      setPlacedTiles([]);
+    }
+  }, [gameState, gameMode]);
 
   // Initialisiere Spieler-Tiles für Solo-Spiel
   useEffect(() => {
@@ -53,6 +79,7 @@ const Index = () => {
       }
       setPlayerTiles(rack);
       setTileBag(bagCopy);
+      setIsMyTurn(true);
     }
   }, [gameMode]);
 
@@ -61,17 +88,18 @@ const Index = () => {
     setTileBag(generateTileBag());
     setPlayerTiles(Array(7).fill(null));
     setScore(0);
+    setOpponentScore(0);
     setLastWords([]);
     setLastBingo(false);
     setPlacedTiles([]);
     setHasFirstMove(false);
+    setIsMyTurn(true);
     setGameMode('solo');
   }, []);
 
   const handleSelectGame = useCallback((gameId: string) => {
     setCurrentGameId(gameId);
     setGameMode('multiplayer');
-    // TODO: Load game state from database
   }, []);
 
   const handleBackToLobby = useCallback(() => {
@@ -331,6 +359,12 @@ const Index = () => {
       return;
     }
 
+    // In multiplayer, check if it's my turn
+    if (gameMode === 'multiplayer' && !isMyTurn) {
+      toast.error('Du bist nicht am Zug!');
+      return;
+    }
+
     const direction = extractWordDirection(placedTiles);
     if (!direction) {
       toast.error('Die Buchstaben müssen in einer Reihe liegen');
@@ -350,7 +384,7 @@ const Index = () => {
     const isBingo = placedTiles.length === 7;
     const newScore = score + totalPoints;
 
-    // Speichere in Datenbank
+    // Speichere in played_words Datenbank
     for (const word of words) {
       const playedWord: PlayedWord = {
         word: word.word,
@@ -373,6 +407,7 @@ const Index = () => {
       }
     }
  
+    // Update local state
     setHasFirstMove(true);
     setScore(newScore);
     setLastWords(words);
@@ -381,22 +416,29 @@ const Index = () => {
 
     const bagCopy = [...tileBag];
     const newTiles = drawTiles(bagCopy, placedTiles.length);
-    setPlayerTiles(prev => {
-      const updated = [...prev];
-      let tileIndex = 0;
-      for (let i = 0; i < updated.length && tileIndex < newTiles.length; i++) {
-        if (!updated[i]) {
-          updated[i] = newTiles[tileIndex++];
-        }
+    const updatedRack = [...playerTiles];
+    let tileIndex = 0;
+    for (let i = 0; i < updatedRack.length && tileIndex < newTiles.length; i++) {
+      if (!updatedRack[i]) {
+        updatedRack[i] = newTiles[tileIndex++];
       }
-      return updated;
-    });
+    }
+    setPlayerTiles(updatedRack);
     setTileBag(bagCopy);
 
-    const wordList = words.map(w => w.word).join(', ');
-    const bonusText = isBingo ? ' (+50 Bingo!)' : '';
-    toast.success(`${wordList} für ${totalPoints} Punkte${bonusText}`);
-  }, [placedTiles, extractWordDirection, score, tileBag, hasFirstMove, board]);
+    // Save to database for multiplayer
+    if (gameMode === 'multiplayer') {
+      const saved = await saveGame(board, bagCopy, updatedRack, newScore, true);
+      if (saved) {
+        setIsMyTurn(false);
+        toast.success(`${words.map(w => w.word).join(', ')} für ${totalPoints} Punkte! Gegner ist am Zug.`);
+      }
+    } else {
+      const wordList = words.map(w => w.word).join(', ');
+      const bonusText = isBingo ? ' (+50 Bingo!)' : '';
+      toast.success(`${wordList} für ${totalPoints} Punkte${bonusText}`);
+    }
+  }, [placedTiles, extractWordDirection, score, tileBag, hasFirstMove, board, gameMode, isMyTurn, playerTiles, saveGame]);
 
   const handleReset = useCallback(() => {
     // Blanko-Steine zurück als leere Steine
@@ -436,6 +478,18 @@ const Index = () => {
     );
   }
 
+  // Loading state for multiplayer game
+  if (gameMode === 'multiplayer' && gameLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin mx-auto text-primary" />
+          <p className="mt-2 text-muted-foreground">Spiel wird geladen...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="h-screen overflow-hidden bg-background p-2 sm:p-4">
       <div className="max-w-7xl mx-auto h-full flex flex-col">
@@ -453,7 +507,7 @@ const Index = () => {
             </h1>
           </div>
           <div className="flex items-center gap-2">
-            {loading ? null : user ? (
+            {authLoading ? null : user ? (
               <>
                 <span className="text-sm text-muted-foreground hidden sm:inline">
                   <User className="w-4 h-4 inline mr-1" />
@@ -515,11 +569,15 @@ const Index = () => {
             <GameControls
               onConfirm={handleConfirmWord}
               onReset={handleReset}
-              canConfirm={placedTiles.length > 0}
+              canConfirm={placedTiles.length > 0 && (gameMode === 'solo' || isMyTurn)}
             />
 
             <ScoreBoard 
-              score={score} 
+              score={score}
+              opponentScore={opponentScore}
+              opponentName={opponentName}
+              isMyTurn={isMyTurn}
+              isMultiplayer={gameMode === 'multiplayer'}
               lastWords={lastWords.length > 0 ? lastWords : undefined}
               bingoBonus={lastBingo}
               tilesRemaining={tileBag.length}
