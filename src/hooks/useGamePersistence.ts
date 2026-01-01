@@ -117,20 +117,20 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
     setLoading(true);
     setError(null);
 
-    try {
-      const { data: game, error: gameError } = await supabase
-        .from('games')
-        .select(`
-          *,
-          player1:profiles!games_player1_id_fkey(id, display_name, username),
-          player2:profiles!games_player2_id_fkey(id, display_name, username)
-        `)
-        .eq('id', gameId)
-        .single();
-
-      if (gameError) throw gameError;
-      if (!game) throw new Error('Spiel nicht gefunden');
-
+    const processGameData = async (game: {
+      id: string;
+      player1_id: string;
+      player2_id: string | null;
+      current_turn_player_id: string | null;
+      board_state: Json;
+      tile_bag: Json;
+      player1_rack: Json;
+      player2_rack: Json;
+      player1_score: number;
+      player2_score: number;
+      player1?: { id: string; display_name: string | null; username: string | null } | null;
+      player2?: { id: string; display_name: string | null; username: string | null } | null;
+    }) => {
       const isPlayer1 = game.player1_id === userId;
       const isMyTurn = game.current_turn_player_id === userId;
       
@@ -139,10 +139,12 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
       const tileBag = parseTileBag(game.tile_bag);
       
       // Check if this is a fresh game (empty board and racks)
+      const boardStateArray = game.board_state as unknown[];
+      const player1RackArray = game.player1_rack as unknown[];
       const isNewGame = 
-        (!Array.isArray(game.board_state) || game.board_state.length === 0) &&
-        (!Array.isArray(game.player1_rack) || game.player1_rack.length === 0 || 
-         (game.player1_rack as unknown[]).every(t => t === null));
+        (!Array.isArray(boardStateArray) || boardStateArray.length === 0) &&
+        (!Array.isArray(player1RackArray) || player1RackArray.length === 0 || 
+         player1RackArray.every(t => t === null));
 
       let playerRack: (Tile | null)[];
       let opponentRack: (Tile | null)[];
@@ -189,8 +191,7 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
       // Determine opponent name
       const opponent = isPlayer1 ? game.player2 : game.player1;
       const opponentName = opponent 
-        ? ((opponent as { display_name?: string; username?: string }).display_name || 
-           (opponent as { display_name?: string; username?: string }).username || 'Gegner')
+        ? (opponent.display_name || opponent.username || 'Gegner')
         : 'Gegner';
 
       // Check if any tiles have been placed (first move made)
@@ -207,6 +208,41 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
         hasFirstMove,
         opponentName
       });
+    };
+
+    try {
+      // Use maybeSingle to avoid errors when RLS hasn't propagated yet
+      const { data: game, error: gameError } = await supabase
+        .from('games')
+        .select(`
+          *,
+          player1:profiles!games_player1_id_fkey(id, display_name, username),
+          player2:profiles!games_player2_id_fkey(id, display_name, username)
+        `)
+        .eq('id', gameId)
+        .maybeSingle();
+
+      if (gameError) throw gameError;
+      if (!game) {
+        // Game not found or not accessible yet - retry after a short delay
+        await new Promise(resolve => setTimeout(resolve, 500));
+        const { data: retryGame, error: retryError } = await supabase
+          .from('games')
+          .select(`
+            *,
+            player1:profiles!games_player1_id_fkey(id, display_name, username),
+            player2:profiles!games_player2_id_fkey(id, display_name, username)
+          `)
+          .eq('id', gameId)
+          .maybeSingle();
+        
+        if (retryError) throw retryError;
+        if (!retryGame) throw new Error('Spiel nicht gefunden oder kein Zugriff');
+        
+        await processGameData(retryGame);
+      } else {
+        await processGameData(game);
+      }
     } catch (err) {
       console.error('Error loading game:', err);
       setError(err instanceof Error ? err.message : 'Fehler beim Laden des Spiels');
@@ -232,7 +268,7 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
         .from('games')
         .select('player1_id, player2_id, player1_score, player2_score')
         .eq('id', gameId)
-        .single();
+        .maybeSingle();
 
       if (fetchError) throw fetchError;
       if (!game) throw new Error('Spiel nicht gefunden');
