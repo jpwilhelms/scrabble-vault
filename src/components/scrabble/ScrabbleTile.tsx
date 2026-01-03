@@ -56,6 +56,10 @@ export function ScrabbleTile({
     onDragStart?.({ x: e.clientX, y: e.clientY });
   }, [draggable, onDragStart]);
 
+  // Font sizes using container query units for perfect scaling
+  const letterSize = size === 'small' ? '50cqw' : '55cqw';
+  const pointsSize = size === 'small' ? '18cqw' : '20cqw';
+
   return (
     <div
       onTouchStart={handleTouchStart}
@@ -76,13 +80,14 @@ export function ScrabbleTile({
         touchAction: 'none',
         WebkitTouchCallout: 'none',
         WebkitUserSelect: 'none',
+        containerType: 'size',
       }}
     >
       <div className="absolute inset-0 flex items-center justify-center">
         {!isBlank && (
           <span 
             className="font-extrabold text-black leading-none"
-            style={{ fontSize: size === 'small' ? '0.6em' : '0.65em' }}
+            style={{ fontSize: letterSize }}
           >
             {tile.letter}
           </span>
@@ -93,9 +98,9 @@ export function ScrabbleTile({
         <span 
           className="absolute font-bold text-black/70 leading-none"
           style={{ 
-            fontSize: size === 'small' ? '0.25em' : '0.3em',
-            right: '0.1em',
-            bottom: '0.05em'
+            fontSize: pointsSize,
+            right: '6cqw',
+            bottom: '2cqw'
           }}
         >
           {tile.points}
