@@ -80,10 +80,10 @@ export function ScrabbleTile({
     >
       <div className="absolute inset-0 flex items-center justify-center">
         {!isBlank && (
-          <span className={cn(
-            "font-extrabold text-black",
-            size === 'small' ? "text-sm" : "text-2xl"
-          )}>
+          <span 
+            className="font-extrabold text-black leading-none"
+            style={{ fontSize: size === 'small' ? '0.6em' : '0.65em' }}
+          >
             {tile.letter}
           </span>
         )}
@@ -91,12 +91,12 @@ export function ScrabbleTile({
 
       {!isBlank && (
         <span 
-          className={cn(
-            "absolute font-bold text-black/70",
-            size === 'small'
-              ? "right-px bottom-px text-[6px] leading-none"
-              : "right-0.5 bottom-0 text-xs"
-          )}
+          className="absolute font-bold text-black/70 leading-none"
+          style={{ 
+            fontSize: size === 'small' ? '0.25em' : '0.3em',
+            right: '0.1em',
+            bottom: '0.05em'
+          }}
         >
           {tile.points}
         </span>
