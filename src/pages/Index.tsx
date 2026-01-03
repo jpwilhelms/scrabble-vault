@@ -529,11 +529,18 @@ const Index = () => {
           </div>
         </div>
         
-        <div className="flex flex-col gap-2 sm:gap-3 flex-1">
-          {/* Spielfeld */}
-          <div className="w-full flex-shrink-0">
-            <div className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 border-2 border-border mx-auto max-w-full">
-              <div className="grid grid-cols-15 gap-0 w-full">
+        <div className="flex flex-col gap-2 sm:gap-3 flex-1 min-h-0">
+          {/* Spielfeld - responsive mit max-height */}
+          <div className="flex-1 min-h-0 flex items-start justify-center">
+            <div 
+              className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 border-2 border-border aspect-square"
+              style={{ 
+                maxHeight: 'calc(100vh - 220px)', 
+                maxWidth: 'min(100%, calc(100vh - 220px))',
+                width: '100%'
+              }}
+            >
+              <div className="grid grid-cols-15 gap-0 w-full h-full" style={{ fontSize: 'calc((100vh - 260px) / 15)' }}>
                 {board.map((row, y) =>
                   row.map((square, x) => {
                     const isCurrentTurn = placedTiles.some(p => p.x === x && p.y === y);
