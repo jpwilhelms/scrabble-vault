@@ -101,7 +101,7 @@ export function InvitationList({ onGameAccepted }: InvitationListProps) {
     setProcessingId(invitation.id);
 
     try {
-      // Update invitation status
+      // Update invitation status - DB trigger will auto-activate the game
       const { error: invError } = await supabase
         .from('game_invitations')
         .update({ status: 'accepted', responded_at: new Date().toISOString() })
@@ -109,20 +109,12 @@ export function InvitationList({ onGameAccepted }: InvitationListProps) {
 
       if (invError) throw invError;
 
-      // Update game to active with player2
-      const { error: gameError } = await supabase
-        .from('games')
-        .update({ 
-          player2_id: user.id, 
-          status: 'active',
-          current_turn_player_id: invitation.sender_id
-        })
-        .eq('id', invitation.game_id);
-
-      if (gameError) throw gameError;
-
       toast.success('Einladung angenommen! Spiel startet.');
-      onGameAccepted?.(invitation.game_id);
+      
+      // Small delay to let the DB trigger complete
+      setTimeout(() => {
+        onGameAccepted?.(invitation.game_id);
+      }, 300);
     } catch (e) {
       console.error('Fehler:', e);
       toast.error('Fehler beim Annehmen der Einladung');
