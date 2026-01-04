@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { BoardSquare as BoardSquareType, Tile, PlayedWord } from '@/types/scrabble';
 import { createBoard } from '@/utils/scrabbleBoard';
@@ -11,6 +11,7 @@ import { GameControls } from '@/components/scrabble/GameControls';
 import { BlankTileDialog } from '@/components/scrabble/BlankTileDialog';
 import { ExchangeTilesDialog } from '@/components/scrabble/ExchangeTilesDialog';
 import { DragOverlay } from '@/components/scrabble/DragOverlay';
+import { PreviewScoreIndicator } from '@/components/scrabble/PreviewScoreIndicator';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
 import { useAuth } from '@/hooks/useAuth';
 import { useGamePersistence } from '@/hooks/useGamePersistence';
@@ -23,6 +24,13 @@ import { MultiplayerLobby } from '@/components/multiplayer/MultiplayerLobby';
 interface WordScore {
   word: string;
   points: number;
+}
+
+interface LastMoveInfo {
+  type: 'word' | 'pass' | 'exchange';
+  playerName?: string;
+  words?: WordScore[];
+  exchangedCount?: number;
 }
 
 type GameMode = 'lobby' | 'solo' | 'multiplayer';
@@ -45,6 +53,9 @@ const Index = () => {
   const [hasFirstMove, setHasFirstMove] = useState(false);
   const [blankTileDialog, setBlankTileDialog] = useState<{ open: boolean; x: number; y: number; tile: Tile } | null>(null);
   const [exchangeDialogOpen, setExchangeDialogOpen] = useState(false);
+  const [lastPlacedPositions, setLastPlacedPositions] = useState<Array<{ x: number; y: number }>>([]);
+  const [lastMoveInfo, setLastMoveInfo] = useState<LastMoveInfo | null>(null);
+  const boardRef = useRef<HTMLDivElement>(null);
 
   const { dragState, startDrag, updatePosition, endDrag, getDragState } = useTouchDrag();
 
@@ -439,6 +450,9 @@ const Index = () => {
     setScore(newScore);
     setLastWords(words);
     setLastBingo(isBingo);
+    
+    // Store positions for highlighting
+    setLastPlacedPositions(placedTiles.map(({ x, y }) => ({ x, y })));
     setPlacedTiles([]);
 
     const bagCopy = [...tileBag];
@@ -458,6 +472,7 @@ const Index = () => {
       const saved = await saveGame(board, bagCopy, updatedRack, newScore, true);
       if (saved) {
         setIsMyTurn(false);
+        setLastMoveInfo(null); // Clear opponent's last move info
         toast.success(`${words.map(w => w.word).join(', ')} für ${totalPoints} Punkte! Gegner ist am Zug.`);
       }
     } else {
@@ -504,6 +519,8 @@ const Index = () => {
       const saved = await saveGame(board, tileBag, playerTiles, score, true);
       if (saved) {
         setIsMyTurn(false);
+        setLastMoveInfo(null);
+        setLastPlacedPositions([]);
         toast.info('Du hast ausgesetzt. Gegner ist am Zug.');
       }
     } else {
@@ -547,6 +564,8 @@ const Index = () => {
       saveGame(board, bagCopy, updatedRack, score, true).then(saved => {
         if (saved) {
           setIsMyTurn(false);
+          setLastMoveInfo(null);
+          setLastPlacedPositions([]);
           toast.info(`${tileIds.length} Stein${tileIds.length !== 1 ? 'e' : ''} getauscht. Gegner ist am Zug.`);
         }
       });
@@ -554,6 +573,41 @@ const Index = () => {
       toast.info(`${tileIds.length} Stein${tileIds.length !== 1 ? 'e' : ''} getauscht.`);
     }
   }, [tileBag, playerTiles, gameMode, board, score, saveGame]);
+
+  // Calculate preview score for placed tiles
+  const previewScore = useMemo(() => {
+    if (placedTiles.length === 0) return 0;
+    try {
+      const { totalPoints } = calculateTotalPoints(board, placedTiles);
+      return totalPoints;
+    } catch {
+      return 0;
+    }
+  }, [board, placedTiles]);
+
+  // Get position for preview score indicator (bottom-right of last placed tile)
+  const previewScorePosition = useMemo(() => {
+    if (placedTiles.length === 0 || !boardRef.current) return { x: 0, y: 0 };
+    
+    // Find the bottom-right most tile
+    const sortedTiles = [...placedTiles].sort((a, b) => {
+      if (a.y !== b.y) return b.y - a.y; // Higher y first
+      return b.x - a.x; // Higher x first
+    });
+    const lastTile = sortedTiles[0];
+    
+    const boardRect = boardRef.current.getBoundingClientRect();
+    const cellSize = boardRect.width / 15;
+    
+    return {
+      x: boardRect.left + (lastTile.x + 1) * cellSize,
+      y: boardRect.top + (lastTile.y + 1) * cellSize,
+    };
+  }, [placedTiles]);
+
+  const handleSignOut = async () => {
+    await signOut();
+  };
 
   // Wenn eingeloggt und im Lobby-Modus, zeige MultiplayerLobby
   if (user && gameMode === 'lobby') {
@@ -600,7 +654,7 @@ const Index = () => {
                   <User className="w-4 h-4 inline mr-1" />
                   {user.user_metadata?.username || user.email?.split('@')[0]}
                 </span>
-                <Button variant="outline" size="sm" onClick={() => signOut()}>
+                <Button variant="outline" size="sm" onClick={handleSignOut}>
                   <LogOut className="w-4 h-4 mr-1" />
                   <span className="hidden sm:inline">Abmelden</span>
                 </Button>
@@ -618,7 +672,7 @@ const Index = () => {
         
         <div className="flex flex-col gap-2 sm:gap-3 flex-1 min-h-0">
           {/* Spielfeld - width-driven, full width container */}
-          <div className="w-full">
+          <div className="w-full" ref={boardRef}>
             <div className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 border-2 border-border w-full aspect-square">
               <div className="grid grid-cols-15 gap-0 w-full h-full">
                 {board.map((row, y) =>
@@ -626,12 +680,14 @@ const Index = () => {
                     const isCurrentTurn = placedTiles.some(p => p.x === x && p.y === y);
                     const isDraggedTile = dragState.source?.type === 'board' && 
                       dragState.source.x === x && dragState.source.y === y;
+                    const isLastPlaced = lastPlacedPositions.some(p => p.x === x && p.y === y);
                     return (
                       <BoardSquare
                         key={`${x}-${y}`}
                         square={square}
                         isCurrentTurn={isCurrentTurn}
                         isDraggedTile={isDraggedTile}
+                        isLastPlaced={isLastPlaced}
                         onTileDragStart={handleBoardTileDragStart}
                         onTileDragMove={handleDragMove}
                         onTileDragEnd={handleDragEnd}
@@ -672,12 +728,17 @@ const Index = () => {
               lastWords={lastWords.length > 0 ? lastWords : undefined}
               bingoBonus={lastBingo}
               tilesRemaining={tileBag.length}
+              lastMoveInfo={lastMoveInfo}
             />
           </div>
         </div>
       </div>
 
       <DragOverlay tile={dragState.tile} position={dragState.position} />
+      
+      {placedTiles.length > 0 && previewScore > 0 && (
+        <PreviewScoreIndicator score={previewScore} position={previewScorePosition} />
+      )}
 
       <BlankTileDialog
         open={blankTileDialog?.open ?? false}

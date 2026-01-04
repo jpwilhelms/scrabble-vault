@@ -7,6 +7,7 @@ interface BoardSquareProps {
   square: BoardSquareType;
   isCurrentTurn?: boolean;
   isDraggedTile?: boolean;
+  isLastPlaced?: boolean;
   onTileDragStart?: (tile: Tile, x: number, y: number, position: { x: number; y: number }) => void;
   onTileDragMove?: (position: { x: number; y: number }) => void;
   onTileDragEnd?: (position: { x: number; y: number }) => void;
@@ -16,6 +17,7 @@ export function BoardSquare({
   square, 
   isCurrentTurn = false,
   isDraggedTile = false,
+  isLastPlaced = false,
   onTileDragStart,
   onTileDragMove,
   onTileDragEnd,
@@ -37,6 +39,7 @@ export function BoardSquare({
         "transition-all duration-200",
         !square.tile && getPremiumColor(square.premium),
         square.tile && "bg-gradient-to-br from-scrabble-tileLight to-scrabble-tile",
+        isLastPlaced && "ring-2 ring-accent ring-offset-1 ring-offset-background",
       )}
     >
       {!square.tile && square.premium && square.premium !== 'STAR' && (
