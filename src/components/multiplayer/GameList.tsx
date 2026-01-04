@@ -124,7 +124,7 @@ export function GameList({ onSelectGame }: GameListProps) {
       <CardHeader>
         <CardTitle className="text-lg">Meine Spiele</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-h-60 overflow-y-auto">
         {games.length === 0 ? (
           <p className="text-sm text-muted-foreground">Keine aktiven Spiele</p>
         ) : (

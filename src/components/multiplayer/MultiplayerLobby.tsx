@@ -13,8 +13,12 @@ interface MultiplayerLobbyProps {
 export function MultiplayerLobby({ onSelectGame, onStartSoloGame }: MultiplayerLobbyProps) {
   const { user, signOut } = useAuth();
 
+  const handleSignOut = async () => {
+    await signOut();
+  };
+
   return (
-    <div className="min-h-screen bg-background p-4">
+    <div className="min-h-[100dvh] bg-background p-4 overflow-y-auto">
       <div className="max-w-2xl mx-auto space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -24,7 +28,7 @@ export function MultiplayerLobby({ onSelectGame, onStartSoloGame }: MultiplayerL
               <User className="w-4 h-4 inline mr-1" />
               {user?.user_metadata?.username || user?.email?.split('@')[0]}
             </span>
-            <Button variant="outline" size="sm" onClick={() => signOut()}>
+            <Button variant="outline" size="sm" onClick={handleSignOut}>
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
@@ -47,7 +51,7 @@ export function MultiplayerLobby({ onSelectGame, onStartSoloGame }: MultiplayerL
         {/* Laufende Spiele */}
         <GameList onSelectGame={onSelectGame} />
 
-        {/* Spielerliste */}
+        {/* Spielerliste - scrollable */}
         <PlayerList />
       </div>
     </div>

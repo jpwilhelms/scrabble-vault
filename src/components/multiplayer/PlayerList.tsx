@@ -100,7 +100,7 @@ export function PlayerList() {
       <CardHeader>
         <CardTitle className="text-lg">Spieler einladen</CardTitle>
       </CardHeader>
-      <CardContent>
+      <CardContent className="max-h-60 overflow-y-auto">
         {players.length === 0 ? (
           <p className="text-sm text-muted-foreground">Keine anderen Spieler gefunden</p>
         ) : (
