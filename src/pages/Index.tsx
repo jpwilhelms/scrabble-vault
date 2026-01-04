@@ -9,6 +9,7 @@ import { PlayerRack } from '@/components/scrabble/PlayerRack';
 import { ScoreBoard } from '@/components/scrabble/ScoreBoard';
 import { GameControls } from '@/components/scrabble/GameControls';
 import { BlankTileDialog } from '@/components/scrabble/BlankTileDialog';
+import { ExchangeTilesDialog } from '@/components/scrabble/ExchangeTilesDialog';
 import { DragOverlay } from '@/components/scrabble/DragOverlay';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
 import { useAuth } from '@/hooks/useAuth';
@@ -43,6 +44,7 @@ const Index = () => {
   const [placedTiles, setPlacedTiles] = useState<Array<{ x: number; y: number; tile: Tile; originalBlank?: boolean }>>([]);
   const [hasFirstMove, setHasFirstMove] = useState(false);
   const [blankTileDialog, setBlankTileDialog] = useState<{ open: boolean; x: number; y: number; tile: Tile } | null>(null);
+  const [exchangeDialogOpen, setExchangeDialogOpen] = useState(false);
 
   const { dragState, startDrag, updatePosition, endDrag, getDragState } = useTouchDrag();
 
@@ -195,8 +197,9 @@ const Index = () => {
     if (dropTarget?.type === 'board') {
       const { x, y } = dropTarget;
       
-      // Check if target is empty
+      // Check if target is empty - prevent placing on occupied squares
       if (board[y][x].tile) {
+        toast.error('Dieses Feld ist bereits belegt');
         endDrag();
         return;
       }
@@ -377,6 +380,30 @@ const Index = () => {
         toast.error('Der erste Zug muss das mittlere Feld einschließen');
         return;
       }
+    } else {
+      // Validate that placed tiles connect to existing words
+      const isConnected = placedTiles.some(({ x, y }) => {
+        // Check all 4 neighbors for existing tiles (not newly placed)
+        const neighbors = [
+          { nx: x - 1, ny: y },
+          { nx: x + 1, ny: y },
+          { nx: x, ny: y - 1 },
+          { nx: x, ny: y + 1 },
+        ];
+        return neighbors.some(({ nx, ny }) => {
+          if (nx < 0 || nx > 14 || ny < 0 || ny > 14) return false;
+          const neighborTile = board[ny][nx].tile;
+          if (!neighborTile) return false;
+          // Check if neighbor is not one of the newly placed tiles
+          const isNewlyPlaced = placedTiles.some(p => p.x === nx && p.y === ny);
+          return !isNewlyPlaced;
+        });
+      });
+
+      if (!isConnected) {
+        toast.error('Das Wort muss an bestehende Buchstaben anschließen');
+        return;
+      }
     }
 
     // Berechne alle Wörter und Punkte
@@ -465,8 +492,68 @@ const Index = () => {
     });
 
     setPlacedTiles([]);
-    // Kein Toast - direkt zurücksetzen
   }, [placedTiles]);
+
+  const handlePass = useCallback(async () => {
+    if (gameMode === 'multiplayer' && !isMyTurn) {
+      toast.error('Du bist nicht am Zug!');
+      return;
+    }
+
+    if (gameMode === 'multiplayer') {
+      const saved = await saveGame(board, tileBag, playerTiles, score, true);
+      if (saved) {
+        setIsMyTurn(false);
+        toast.info('Du hast ausgesetzt. Gegner ist am Zug.');
+      }
+    } else {
+      toast.info('Du hast ausgesetzt.');
+    }
+  }, [gameMode, isMyTurn, board, tileBag, playerTiles, score, saveGame]);
+
+  const handleExchange = useCallback((tileIds: string[]) => {
+    if (tileBag.length < 7) {
+      toast.error('Nicht genug Steine im Beutel zum Tauschen');
+      return;
+    }
+
+    const bagCopy = [...tileBag];
+    const newTiles = drawTiles(bagCopy, tileIds.length);
+    
+    // Put exchanged tiles back in bag
+    const exchangedTiles = playerTiles.filter(t => t && tileIds.includes(t.id)) as Tile[];
+    bagCopy.push(...exchangedTiles);
+    
+    // Shuffle the bag
+    for (let i = bagCopy.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [bagCopy[i], bagCopy[j]] = [bagCopy[j], bagCopy[i]];
+    }
+
+    // Update rack
+    const updatedRack = playerTiles.map(tile => {
+      if (tile && tileIds.includes(tile.id)) {
+        const newTile = newTiles.shift();
+        return newTile || null;
+      }
+      return tile;
+    });
+
+    setPlayerTiles(updatedRack);
+    setTileBag(bagCopy);
+    setExchangeDialogOpen(false);
+
+    if (gameMode === 'multiplayer') {
+      saveGame(board, bagCopy, updatedRack, score, true).then(saved => {
+        if (saved) {
+          setIsMyTurn(false);
+          toast.info(`${tileIds.length} Stein${tileIds.length !== 1 ? 'e' : ''} getauscht. Gegner ist am Zug.`);
+        }
+      });
+    } else {
+      toast.info(`${tileIds.length} Stein${tileIds.length !== 1 ? 'e' : ''} getauscht.`);
+    }
+  }, [tileBag, playerTiles, gameMode, board, score, saveGame]);
 
   // Wenn eingeloggt und im Lobby-Modus, zeige MultiplayerLobby
   if (user && gameMode === 'lobby') {
@@ -491,10 +578,10 @@ const Index = () => {
   }
 
   return (
-    <div className="h-screen overflow-hidden bg-background p-2 sm:p-4">
-      <div className="max-w-7xl mx-auto h-full flex flex-col">
+    <div className="min-h-[100dvh] bg-background p-2 sm:p-4 flex flex-col">
+      <div className="w-full max-w-lg mx-auto flex-1 flex flex-col">
         {/* Header mit Auth */}
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center justify-between mb-2 flex-shrink-0">
           <div className="flex items-center gap-2">
             {user && (
               <Button variant="ghost" size="sm" onClick={handleBackToLobby}>
@@ -502,7 +589,7 @@ const Index = () => {
                 Lobby
               </Button>
             )}
-            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold text-foreground">
+            <h1 className="text-xl sm:text-2xl font-bold text-foreground">
               Scrabble
             </h1>
           </div>
@@ -530,15 +617,9 @@ const Index = () => {
         </div>
         
         <div className="flex flex-col gap-2 sm:gap-3 flex-1 min-h-0">
-          {/* Spielfeld - height-driven responsive sizing */}
-          <div className="flex-1 min-h-0 flex items-start justify-center">
-            <div 
-              className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 border-2 border-border aspect-square h-full max-h-full"
-              style={{ 
-                maxWidth: '100%',
-                width: 'auto'
-              }}
-            >
+          {/* Spielfeld - width-driven, full width container */}
+          <div className="w-full">
+            <div className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 border-2 border-border w-full aspect-square">
               <div className="grid grid-cols-15 gap-0 w-full h-full">
                 {board.map((row, y) =>
                   row.map((square, x) => {
@@ -575,7 +656,11 @@ const Index = () => {
             <GameControls
               onConfirm={handleConfirmWord}
               onReset={handleReset}
+              onPass={handlePass}
+              onExchange={() => setExchangeDialogOpen(true)}
               canConfirm={placedTiles.length > 0 && (gameMode === 'solo' || isMyTurn)}
+              canExchange={tileBag.length >= 7 && (gameMode === 'solo' || isMyTurn)}
+              hasPlacedTiles={placedTiles.length > 0}
             />
 
             <ScoreBoard 
@@ -598,6 +683,14 @@ const Index = () => {
         open={blankTileDialog?.open ?? false}
         onSelect={handleBlankTileSelect}
         onCancel={handleBlankTileCancel}
+      />
+
+      <ExchangeTilesDialog
+        open={exchangeDialogOpen}
+        tiles={playerTiles}
+        tilesInBag={tileBag.length}
+        onExchange={handleExchange}
+        onCancel={() => setExchangeDialogOpen(false)}
       />
     </div>
   );
