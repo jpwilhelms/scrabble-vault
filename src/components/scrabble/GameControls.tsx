@@ -1,14 +1,16 @@
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Check, SkipForward, Shuffle } from 'lucide-react';
+import { RotateCcw, Check, SkipForward, Shuffle, Flag } from 'lucide-react';
 
 interface GameControlsProps {
   onConfirm: () => void;
   onReset: () => void;
   onPass: () => void;
   onExchange: () => void;
+  onForfeit?: () => void;
   canConfirm: boolean;
   canExchange: boolean;
   hasPlacedTiles: boolean;
+  isMultiplayer?: boolean;
 }
 
 export function GameControls({ 
@@ -16,9 +18,11 @@ export function GameControls({
   onReset, 
   onPass, 
   onExchange, 
+  onForfeit,
   canConfirm, 
   canExchange,
   hasPlacedTiles,
+  isMultiplayer,
 }: GameControlsProps) {
   return (
     <div className="flex gap-2 sm:gap-3 flex-wrap">
@@ -58,6 +62,16 @@ export function GameControls({
         <Shuffle className="mr-2 h-5 w-5" />
         Tauschen
       </Button>
+      {isMultiplayer && onForfeit && (
+        <Button
+          onClick={onForfeit}
+          variant="destructive"
+          size="lg"
+        >
+          <Flag className="mr-2 h-5 w-5" />
+          Aufgeben
+        </Button>
+      )}
     </div>
   );
 }

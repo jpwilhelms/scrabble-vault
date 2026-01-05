@@ -305,13 +305,19 @@ const Index = () => {
           const newTiles = [...prev];
           const [movingTile] = newTiles.splice(currentIndex, 1);
           newTiles.splice(targetIndex, 0, movingTile);
+          
+          // Save rack order for multiplayer
+          if (gameMode === 'multiplayer' && currentGameId) {
+            saveGame(board, tileBag, newTiles, score, false);
+          }
+          
           return newTiles;
         });
       }
     }
 
     endDrag();
-  }, [board, endDrag, findDropTarget, getDragState, placedTiles]);
+  }, [board, endDrag, findDropTarget, getDragState, placedTiles, gameMode, currentGameId, tileBag, score, saveGame]);
 
   const handleBlankTileSelect = useCallback((letter: string) => {
     if (!blankTileDialog) return;
@@ -528,6 +534,42 @@ const Index = () => {
     }
   }, [gameMode, isMyTurn, board, tileBag, playerTiles, score, saveGame]);
 
+  const handleForfeit = useCallback(async () => {
+    if (!currentGameId || !user) return;
+    
+    const confirmed = window.confirm('Möchtest du das Spiel wirklich aufgeben? Der Gegner gewinnt.');
+    if (!confirmed) return;
+
+    try {
+      const { data: game } = await supabase
+        .from('games')
+        .select('player1_id, player2_id')
+        .eq('id', currentGameId)
+        .single();
+
+      if (!game) throw new Error('Spiel nicht gefunden');
+
+      const winnerId = game.player1_id === user.id ? game.player2_id : game.player1_id;
+
+      const { error } = await supabase
+        .from('games')
+        .update({ 
+          status: 'finished',
+          winner_id: winnerId
+        })
+        .eq('id', currentGameId);
+
+      if (error) throw error;
+
+      toast.success('Du hast aufgegeben.');
+      setGameMode('lobby');
+      setCurrentGameId(null);
+    } catch (e) {
+      console.error('Fehler beim Aufgeben:', e);
+      toast.error('Fehler beim Aufgeben');
+    }
+  }, [currentGameId, user]);
+
   const handleExchange = useCallback((tileIds: string[]) => {
     if (tileBag.length < 7) {
       toast.error('Nicht genug Steine im Beutel zum Tauschen');
@@ -631,6 +673,43 @@ const Index = () => {
     );
   }
 
+  // Fallback: if multiplayer mode but no game loaded, go back to lobby
+  if (gameMode === 'multiplayer' && !gameState && !gameLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-background">
+        <div className="text-center space-y-4">
+          <p className="text-muted-foreground">Spiel nicht verfügbar</p>
+          <Button onClick={handleBackToLobby}>
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Zurück zur Lobby
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // If not logged in, show solo game option or login
+  if (!user && gameMode === 'lobby') {
+    return (
+      <div className="min-h-[100dvh] bg-background p-4 flex flex-col items-center justify-center">
+        <div className="text-center space-y-6">
+          <h1 className="text-3xl font-bold text-foreground">Scrabble</h1>
+          <div className="space-y-3">
+            <Button onClick={handleStartSoloGame} size="lg" className="w-full">
+              Solo spielen
+            </Button>
+            <Link to="/auth">
+              <Button variant="outline" size="lg" className="w-full">
+                <LogIn className="w-4 h-4 mr-2" />
+                Anmelden für Multiplayer
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[100dvh] bg-background p-2 sm:p-4 flex flex-col">
       <div className="w-full max-w-lg mx-auto flex-1 flex flex-col">
@@ -714,9 +793,11 @@ const Index = () => {
               onReset={handleReset}
               onPass={handlePass}
               onExchange={() => setExchangeDialogOpen(true)}
+              onForfeit={handleForfeit}
               canConfirm={placedTiles.length > 0 && (gameMode === 'solo' || isMyTurn)}
               canExchange={tileBag.length >= 7 && (gameMode === 'solo' || isMyTurn)}
               hasPlacedTiles={placedTiles.length > 0}
+              isMultiplayer={gameMode === 'multiplayer'}
             />
 
             <ScoreBoard 

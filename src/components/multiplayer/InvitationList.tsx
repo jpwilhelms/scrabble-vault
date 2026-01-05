@@ -152,6 +152,36 @@ export function InvitationList({ onGameAccepted }: InvitationListProps) {
     }
   };
 
+  const handleCancelInvitation = async (invitation: Invitation) => {
+    setProcessingId(invitation.id);
+
+    try {
+      // Delete invitation
+      const { error: invError } = await supabase
+        .from('game_invitations')
+        .delete()
+        .eq('id', invitation.id);
+
+      if (invError) throw invError;
+
+      // Delete the pending game
+      const { error: gameError } = await supabase
+        .from('games')
+        .delete()
+        .eq('id', invitation.game_id);
+
+      if (gameError) console.error('Game deletion error:', gameError);
+
+      toast.success('Einladung zurückgezogen');
+      loadInvitations();
+    } catch (e) {
+      console.error('Fehler:', e);
+      toast.error('Fehler beim Löschen');
+    } finally {
+      setProcessingId(null);
+    }
+  };
+
   if (loading) {
     return (
       <Card>
@@ -234,10 +264,24 @@ export function InvitationList({ onGameAccepted }: InvitationListProps) {
                     key={inv.id}
                     className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
                   >
-                    <span className="font-medium">
-                      {inv.recipient_profile?.display_name || inv.recipient_profile?.username || 'Unbekannt'}
-                    </span>
-                    <span className="text-sm text-muted-foreground">Warte auf Antwort...</span>
+                    <div>
+                      <span className="font-medium">
+                        {inv.recipient_profile?.display_name || inv.recipient_profile?.username || 'Unbekannt'}
+                      </span>
+                      <p className="text-sm text-muted-foreground">Warte auf Antwort...</p>
+                    </div>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleCancelInvitation(inv)}
+                      disabled={processingId === inv.id}
+                    >
+                      {processingId === inv.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <X className="w-4 h-4" />
+                      )}
+                    </Button>
                   </div>
                 ))}
               </div>
