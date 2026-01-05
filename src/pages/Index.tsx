@@ -12,6 +12,7 @@ import { BlankTileDialog } from '@/components/scrabble/BlankTileDialog';
 import { ExchangeTilesDialog } from '@/components/scrabble/ExchangeTilesDialog';
 import { DragOverlay } from '@/components/scrabble/DragOverlay';
 import { PreviewScoreIndicator } from '@/components/scrabble/PreviewScoreIndicator';
+import { LastPlacedHighlight } from '@/components/scrabble/LastPlacedHighlight';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
 import { useAuth } from '@/hooks/useAuth';
 import { useGamePersistence } from '@/hooks/useGamePersistence';
@@ -55,6 +56,7 @@ const Index = () => {
   const [exchangeDialogOpen, setExchangeDialogOpen] = useState(false);
   const [lastPlacedPositions, setLastPlacedPositions] = useState<Array<{ x: number; y: number }>>([]);
   const [lastMoveInfo, setLastMoveInfo] = useState<LastMoveInfo | null>(null);
+  const [boardDimensions, setBoardDimensions] = useState({ cellSize: 0, offset: { x: 0, y: 0 } });
   const boardRef = useRef<HTMLDivElement>(null);
 
   const { dragState, startDrag, updatePosition, endDrag, getDragState } = useTouchDrag();
@@ -209,7 +211,12 @@ const Index = () => {
       const { x, y } = dropTarget;
       
       // Check if target is empty - prevent placing on occupied squares
-      if (board[y][x].tile) {
+      // Check both board state AND currently placed tiles
+      const existingTile = board[y][x].tile;
+      const placedAtTarget = placedTiles.some(p => p.x === x && p.y === y);
+      const isOwnTileBeingMoved = source?.type === 'board' && source.x === x && source.y === y;
+      
+      if ((existingTile || placedAtTarget) && !isOwnTileBeingMoved) {
         toast.error('Dieses Feld ist bereits belegt');
         endDrag();
         return;
@@ -306,13 +313,15 @@ const Index = () => {
           const [movingTile] = newTiles.splice(currentIndex, 1);
           newTiles.splice(targetIndex, 0, movingTile);
           
-          // Save rack order for multiplayer
-          if (gameMode === 'multiplayer' && currentGameId) {
-            saveGame(board, tileBag, newTiles, score, false);
-          }
-          
           return newTiles;
         });
+        
+        // Save rack order for multiplayer after state update (debounced via timeout)
+        if (gameMode === 'multiplayer' && currentGameId) {
+          setTimeout(() => {
+            saveGame(board, tileBag, playerTiles, score, false);
+          }, 500);
+        }
       }
     }
 
@@ -629,7 +638,7 @@ const Index = () => {
 
   // Get position for preview score indicator (bottom-right of last placed tile)
   const previewScorePosition = useMemo(() => {
-    if (placedTiles.length === 0 || !boardRef.current) return { x: 0, y: 0 };
+    if (placedTiles.length === 0) return { x: 0, y: 0 };
     
     // Find the bottom-right most tile
     const sortedTiles = [...placedTiles].sort((a, b) => {
@@ -638,14 +647,35 @@ const Index = () => {
     });
     const lastTile = sortedTiles[0];
     
-    const boardRect = boardRef.current.getBoundingClientRect();
-    const cellSize = boardRect.width / 15;
-    
     return {
-      x: boardRect.left + (lastTile.x + 1) * cellSize,
-      y: boardRect.top + (lastTile.y + 1) * cellSize,
+      x: boardDimensions.offset.x + (lastTile.x + 1) * boardDimensions.cellSize,
+      y: boardDimensions.offset.y + (lastTile.y + 1) * boardDimensions.cellSize,
     };
-  }, [placedTiles]);
+  }, [placedTiles, boardDimensions]);
+
+  // Update board dimensions for highlight overlay and preview score
+  useEffect(() => {
+    const updateDimensions = () => {
+      if (boardRef.current) {
+        const boardContainer = boardRef.current.querySelector('.bg-card');
+        if (boardContainer) {
+          const rect = boardContainer.getBoundingClientRect();
+          // Account for padding (p-1 on mobile = 4px, p-2 on desktop = 8px)
+          const padding = window.innerWidth < 640 ? 4 : 8;
+          const innerWidth = rect.width - (padding * 2);
+          const cellSize = innerWidth / 15;
+          setBoardDimensions({
+            cellSize,
+            offset: { x: padding, y: padding }
+          });
+        }
+      }
+    };
+
+    updateDimensions();
+    window.addEventListener('resize', updateDimensions);
+    return () => window.removeEventListener('resize', updateDimensions);
+  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -711,36 +741,35 @@ const Index = () => {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-background p-2 sm:p-4 flex flex-col">
-      <div className="w-full max-w-lg mx-auto flex-1 flex flex-col">
+    <div className="h-[100dvh] bg-background p-2 sm:p-4 flex flex-col overflow-hidden">
+      <div className="w-full max-w-lg mx-auto flex-1 flex flex-col min-h-0">
         {/* Header mit Auth */}
-        <div className="flex items-center justify-between mb-2 flex-shrink-0">
+        <div className="flex items-center justify-between mb-1 flex-shrink-0">
           <div className="flex items-center gap-2">
             {user && (
-              <Button variant="ghost" size="sm" onClick={handleBackToLobby}>
+              <Button variant="ghost" size="sm" onClick={handleBackToLobby} className="h-8 px-2">
                 <ArrowLeft className="w-4 h-4 mr-1" />
-                Lobby
+                <span className="hidden sm:inline">Lobby</span>
               </Button>
             )}
-            <h1 className="text-xl sm:text-2xl font-bold text-foreground">
+            <h1 className="text-lg sm:text-xl font-bold text-foreground">
               Scrabble
             </h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {authLoading ? null : user ? (
               <>
-                <span className="text-sm text-muted-foreground hidden sm:inline">
-                  <User className="w-4 h-4 inline mr-1" />
+                <span className="text-xs text-muted-foreground hidden sm:inline">
+                  <User className="w-3 h-3 inline mr-1" />
                   {user.user_metadata?.username || user.email?.split('@')[0]}
                 </span>
-                <Button variant="outline" size="sm" onClick={handleSignOut}>
-                  <LogOut className="w-4 h-4 mr-1" />
-                  <span className="hidden sm:inline">Abmelden</span>
+                <Button variant="outline" size="sm" onClick={handleSignOut} className="h-8">
+                  <LogOut className="w-4 h-4" />
                 </Button>
               </>
             ) : (
               <Link to="/auth">
-                <Button variant="default" size="sm">
+                <Button variant="default" size="sm" className="h-8">
                   <LogIn className="w-4 h-4 mr-1" />
                   <span className="hidden sm:inline">Anmelden</span>
                 </Button>
@@ -749,10 +778,10 @@ const Index = () => {
           </div>
         </div>
         
-        <div className="flex flex-col gap-2 sm:gap-3 flex-1 min-h-0">
-          {/* Spielfeld - width-driven, full width container */}
-          <div className="w-full" ref={boardRef}>
-            <div className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 border-2 border-border w-full aspect-square">
+        <div className="flex flex-col gap-1 sm:gap-2 flex-1 min-h-0">
+          {/* Spielfeld - relative container for overlay */}
+          <div className="w-full relative flex-shrink-0" ref={boardRef}>
+            <div className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 border-2 border-border w-full aspect-square relative">
               <div className="grid grid-cols-15 gap-0 w-full h-full">
                 {board.map((row, y) =>
                   row.map((square, x) => {
@@ -775,11 +804,19 @@ const Index = () => {
                   })
                 )}
               </div>
+              {/* Green highlight overlay for last placed tiles */}
+              {lastPlacedPositions.length > 0 && boardDimensions.cellSize > 0 && (
+                <LastPlacedHighlight
+                  positions={lastPlacedPositions}
+                  boardWidth={boardDimensions.cellSize * 15 + 16} // cellSize * 15 + padding (p-2 = 8px * 2)
+                  padding={8}
+                />
+              )}
             </div>
           </div>
 
-          {/* Rack, Controls und Score */}
-          <div className="space-y-2 flex-shrink-0">
+          {/* Rack, Controls und Score - compacted */}
+          <div className="space-y-1 flex-shrink-0">
             <PlayerRack
               tiles={playerTiles}
               draggedTileId={dragState.source?.type === 'rack' ? dragState.tile?.id : null}
@@ -817,8 +854,14 @@ const Index = () => {
 
       <DragOverlay tile={dragState.tile} position={dragState.position} />
       
-      {placedTiles.length > 0 && previewScore > 0 && (
-        <PreviewScoreIndicator score={previewScore} position={previewScorePosition} />
+      {placedTiles.length > 0 && previewScore > 0 && boardRef.current && (
+        <PreviewScoreIndicator 
+          score={previewScore} 
+          position={{
+            x: boardRef.current.getBoundingClientRect().left + previewScorePosition.x,
+            y: boardRef.current.getBoundingClientRect().top + previewScorePosition.y,
+          }} 
+        />
       )}
 
       <BlankTileDialog
