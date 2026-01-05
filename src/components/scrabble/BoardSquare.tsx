@@ -39,7 +39,7 @@ export function BoardSquare({
         "transition-all duration-200",
         !square.tile && getPremiumColor(square.premium),
         square.tile && "bg-gradient-to-br from-scrabble-tileLight to-scrabble-tile",
-        isLastPlaced && "ring-2 ring-accent ring-offset-1 ring-offset-background",
+        // isLastPlaced styling now handled by LastPlacedHighlight overlay
       )}
     >
       {!square.tile && square.premium && square.premium !== 'STAR' && (

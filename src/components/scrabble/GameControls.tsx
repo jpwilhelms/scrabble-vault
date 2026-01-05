@@ -1,5 +1,6 @@
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Check, SkipForward, Shuffle, Flag } from 'lucide-react';
+import { RotateCcw, Check } from 'lucide-react';
+import { GameActionsMenu } from './GameActionsMenu';
 
 interface GameControlsProps {
   onConfirm: () => void;
@@ -25,12 +26,12 @@ export function GameControls({
   isMultiplayer,
 }: GameControlsProps) {
   return (
-    <div className="flex gap-2 sm:gap-3 flex-wrap">
+    <div className="flex gap-2 sm:gap-3">
       <Button
         onClick={onConfirm}
         disabled={!canConfirm}
         size="lg"
-        className="flex-1 min-w-[120px]"
+        className="flex-1"
       >
         <Check className="mr-2 h-5 w-5" />
         Wort legen
@@ -42,36 +43,16 @@ export function GameControls({
         disabled={!hasPlacedTiles}
       >
         <RotateCcw className="mr-2 h-5 w-5" />
-        Zurücksetzen
+        Zurück
       </Button>
-      <Button
-        onClick={onPass}
-        variant="secondary"
-        size="lg"
-        disabled={hasPlacedTiles}
-      >
-        <SkipForward className="mr-2 h-5 w-5" />
-        Passen
-      </Button>
-      <Button
-        onClick={onExchange}
-        variant="secondary"
-        size="lg"
-        disabled={!canExchange || hasPlacedTiles}
-      >
-        <Shuffle className="mr-2 h-5 w-5" />
-        Tauschen
-      </Button>
-      {isMultiplayer && onForfeit && (
-        <Button
-          onClick={onForfeit}
-          variant="destructive"
-          size="lg"
-        >
-          <Flag className="mr-2 h-5 w-5" />
-          Aufgeben
-        </Button>
-      )}
+      <GameActionsMenu
+        onPass={onPass}
+        onExchange={onExchange}
+        onForfeit={onForfeit}
+        canExchange={canExchange}
+        hasPlacedTiles={hasPlacedTiles}
+        isMultiplayer={isMultiplayer}
+      />
     </div>
   );
 }
