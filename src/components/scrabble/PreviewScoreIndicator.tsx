@@ -12,10 +12,10 @@ export function PreviewScoreIndicator({ score, position }: PreviewScoreIndicator
       style={{
         left: position.x,
         top: position.y,
-        transform: 'translate(50%, 50%)',
+        transform: 'translate(-25%, -25%)',
       }}
     >
-      <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-xs font-bold shadow-lg border-2 border-background">
+      <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center text-[10px] sm:text-xs font-bold shadow-lg border border-background">
         {score}
       </div>
     </div>
