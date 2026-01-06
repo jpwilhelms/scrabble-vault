@@ -2,17 +2,14 @@ import { useMemo } from 'react';
 
 interface LastPlacedHighlightProps {
   positions: Array<{ x: number; y: number }>;
-  boardWidth: number;
-  padding: number;
 }
 
-export function LastPlacedHighlight({ positions, boardWidth, padding }: LastPlacedHighlightProps) {
+export function LastPlacedHighlight({ positions }: LastPlacedHighlightProps) {
   const pathData = useMemo(() => {
-    if (positions.length === 0 || boardWidth === 0) return null;
+    if (positions.length === 0) return null;
 
-    // Calculate cell size from board width minus padding
-    const innerWidth = boardWidth - (padding * 2);
-    const cellSize = innerWidth / 15;
+    // Work in percentage coordinates (0-100%)
+    const cellSize = 100 / 15;
 
     // Create a set for fast lookup
     const posSet = new Set(positions.map(p => `${p.x},${p.y}`));
@@ -22,8 +19,8 @@ export function LastPlacedHighlight({ positions, boardWidth, padding }: LastPlac
 
     for (const pos of positions) {
       const { x, y } = pos;
-      const left = padding + x * cellSize;
-      const top = padding + y * cellSize;
+      const left = x * cellSize;
+      const top = y * cellSize;
       const right = left + cellSize;
       const bottom = top + cellSize;
 
@@ -47,13 +44,15 @@ export function LastPlacedHighlight({ positions, boardWidth, padding }: LastPlac
     }
 
     return edges;
-  }, [positions, boardWidth, padding]);
+  }, [positions]);
 
   if (!pathData || pathData.length === 0) return null;
 
   return (
     <svg
       className="absolute inset-0 pointer-events-none z-10"
+      viewBox="0 0 100 100"
+      preserveAspectRatio="none"
       style={{ width: '100%', height: '100%' }}
     >
       {pathData.map((edge, i) => (
@@ -64,8 +63,9 @@ export function LastPlacedHighlight({ positions, boardWidth, padding }: LastPlac
           x2={edge.x2}
           y2={edge.y2}
           stroke="#22c55e"
-          strokeWidth="2"
+          strokeWidth="0.4"
           strokeLinecap="round"
+          vectorEffect="non-scaling-stroke"
         />
       ))}
     </svg>

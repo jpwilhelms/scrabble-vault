@@ -16,6 +16,12 @@ interface GameState {
   isMyTurn: boolean;
   hasFirstMove: boolean;
   opponentName: string;
+  consecutivePasses: number;
+  gameStatus: 'pending' | 'active' | 'finished' | 'abandoned';
+  winnerId: string | null;
+  isPlayer1: boolean;
+  player1Id: string;
+  player2Id: string | null;
 }
 
 interface UseGamePersistenceOptions {
@@ -128,6 +134,9 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
       player2_rack: Json;
       player1_score: number;
       player2_score: number;
+      consecutive_passes: number;
+      status: 'pending' | 'active' | 'finished' | 'abandoned';
+      winner_id: string | null;
       player1?: { id: string; display_name: string | null; username: string | null } | null;
       player2?: { id: string; display_name: string | null; username: string | null } | null;
     }) => {
@@ -206,7 +215,13 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
         opponentScore: isPlayer1 ? game.player2_score : game.player1_score,
         isMyTurn,
         hasFirstMove,
-        opponentName
+        opponentName,
+        consecutivePasses: game.consecutive_passes ?? 0,
+        gameStatus: game.status,
+        winnerId: game.winner_id,
+        isPlayer1,
+        player1Id: game.player1_id,
+        player2Id: game.player2_id,
       });
     };
 
@@ -258,7 +273,8 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
     tileBag: Tile[],
     playerTiles: (Tile | null)[],
     playerScore: number,
-    switchTurn: boolean = true
+    switchTurn: boolean = true,
+    moveType: 'word' | 'pass' | 'exchange' = 'word'
   ) => {
     if (!gameId || !userId || !enabled) return false;
 
@@ -266,7 +282,7 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
       // First get current game to know which player we are
       const { data: game, error: fetchError } = await supabase
         .from('games')
-        .select('player1_id, player2_id, player1_score, player2_score')
+        .select('player1_id, player2_id, player1_score, player2_score, consecutive_passes')
         .eq('id', gameId)
         .maybeSingle();
 
@@ -275,11 +291,21 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
 
       const isPlayer1 = game.player1_id === userId;
       const nextPlayerId = isPlayer1 ? game.player2_id : game.player1_id;
+      
+      // Calculate consecutive passes
+      let newConsecutivePasses = 0;
+      if (moveType === 'pass') {
+        newConsecutivePasses = (game.consecutive_passes ?? 0) + 1;
+      } else if (moveType === 'exchange') {
+        newConsecutivePasses = (game.consecutive_passes ?? 0) + 1;
+      }
+      // word resets to 0
 
       const updateData: Record<string, unknown> = {
         board_state: boardToJson(board),
         tile_bag: tileBagToJson(tileBag),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        consecutive_passes: newConsecutivePasses,
       };
 
       if (isPlayer1) {
