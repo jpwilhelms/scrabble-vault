@@ -181,6 +181,7 @@ export type Database = {
       games: {
         Row: {
           board_state: Json
+          consecutive_passes: number
           created_at: string
           current_turn_player_id: string | null
           id: string
@@ -198,6 +199,7 @@ export type Database = {
         }
         Insert: {
           board_state?: Json
+          consecutive_passes?: number
           created_at?: string
           current_turn_player_id?: string | null
           id?: string
@@ -215,6 +217,7 @@ export type Database = {
         }
         Update: {
           board_state?: Json
+          consecutive_passes?: number
           created_at?: string
           current_turn_player_id?: string | null
           id?: string

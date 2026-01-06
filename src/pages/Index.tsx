@@ -13,6 +13,7 @@ import { ExchangeTilesDialog } from '@/components/scrabble/ExchangeTilesDialog';
 import { DragOverlay } from '@/components/scrabble/DragOverlay';
 import { PreviewScoreIndicator } from '@/components/scrabble/PreviewScoreIndicator';
 import { LastPlacedHighlight } from '@/components/scrabble/LastPlacedHighlight';
+import { GameOverDialog } from '@/components/scrabble/GameOverDialog';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
 import { useAuth } from '@/hooks/useAuth';
 import { useGamePersistence } from '@/hooks/useGamePersistence';
@@ -56,7 +57,11 @@ const Index = () => {
   const [exchangeDialogOpen, setExchangeDialogOpen] = useState(false);
   const [lastPlacedPositions, setLastPlacedPositions] = useState<Array<{ x: number; y: number }>>([]);
   const [lastMoveInfo, setLastMoveInfo] = useState<LastMoveInfo | null>(null);
-  const [boardDimensions, setBoardDimensions] = useState({ cellSize: 0, offset: { x: 0, y: 0 } });
+  const [gameOverState, setGameOverState] = useState<{
+    open: boolean;
+    winner: 'player' | 'opponent' | 'draw';
+    reason: 'tiles' | 'passes' | 'forfeit';
+  } | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
 
   const { dragState, startDrag, updatePosition, endDrag, getDragState } = useTouchDrag();
@@ -80,8 +85,40 @@ const Index = () => {
       setIsMyTurn(gameState.isMyTurn);
       setHasFirstMove(gameState.hasFirstMove);
       setPlacedTiles([]);
+
+      // Check for game over conditions
+      if (gameState.gameStatus === 'finished') {
+        let winner: 'player' | 'opponent' | 'draw' = 'draw';
+        if (gameState.winnerId) {
+          const isWinner = (gameState.isPlayer1 && gameState.winnerId === gameState.player1Id) ||
+                          (!gameState.isPlayer1 && gameState.winnerId === gameState.player2Id);
+          winner = isWinner ? 'player' : 'opponent';
+        }
+        setGameOverState({ open: true, winner, reason: 'forfeit' });
+      } else if (gameState.consecutivePasses >= 4) {
+        // Both players passed twice = 4 total passes
+        const winner = gameState.playerScore > gameState.opponentScore ? 'player' :
+                      gameState.playerScore < gameState.opponentScore ? 'opponent' : 'draw';
+        setGameOverState({ open: true, winner, reason: 'passes' });
+      }
     }
   }, [gameState, gameMode]);
+
+  // End game due to passes (update database)
+  const endGameDueToPasses = useCallback(async () => {
+    if (!currentGameId || !gameState) return;
+    
+    const winnerId = gameState.playerScore > gameState.opponentScore 
+      ? (gameState.isPlayer1 ? gameState.player1Id : gameState.player2Id)
+      : gameState.playerScore < gameState.opponentScore
+        ? (gameState.isPlayer1 ? gameState.player2Id : gameState.player1Id)
+        : null;
+
+    await supabase
+      .from('games')
+      .update({ status: 'finished', winner_id: winnerId })
+      .eq('id', currentGameId);
+  }, [currentGameId, gameState]);
 
   // Initialisiere Spieler-Tiles für Solo-Spiel
   useEffect(() => {
@@ -482,12 +519,26 @@ const Index = () => {
     setPlayerTiles(updatedRack);
     setTileBag(bagCopy);
 
+    // Check for game end: no tiles left in rack AND bag is empty
+    const playerHasTiles = updatedRack.some(t => t !== null);
+    if (!playerHasTiles && bagCopy.length === 0 && gameMode === 'multiplayer') {
+      // Player used all tiles - they win!
+      const winnerId = gameState?.isPlayer1 ? gameState.player1Id : gameState?.player2Id;
+      await supabase
+        .from('games')
+        .update({ status: 'finished', winner_id: winnerId })
+        .eq('id', currentGameId);
+      
+      setGameOverState({ open: true, winner: 'player', reason: 'tiles' });
+      return;
+    }
+
     // Save to database for multiplayer
     if (gameMode === 'multiplayer') {
-      const saved = await saveGame(board, bagCopy, updatedRack, newScore, true);
+      const saved = await saveGame(board, bagCopy, updatedRack, newScore, true, 'word');
       if (saved) {
         setIsMyTurn(false);
-        setLastMoveInfo(null); // Clear opponent's last move info
+        setLastMoveInfo(null);
         toast.success(`${words.map(w => w.word).join(', ')} für ${totalPoints} Punkte! Gegner ist am Zug.`);
       }
     } else {
@@ -495,7 +546,7 @@ const Index = () => {
       const bonusText = isBingo ? ' (+50 Bingo!)' : '';
       toast.success(`${wordList} für ${totalPoints} Punkte${bonusText}`);
     }
-  }, [placedTiles, extractWordDirection, score, tileBag, hasFirstMove, board, gameMode, isMyTurn, playerTiles, saveGame]);
+  }, [placedTiles, extractWordDirection, score, tileBag, hasFirstMove, board, gameMode, isMyTurn, playerTiles, saveGame, currentGameId, gameState]);
 
   const handleReset = useCallback(() => {
     // Blanko-Steine zurück als leere Steine
@@ -531,7 +582,7 @@ const Index = () => {
     }
 
     if (gameMode === 'multiplayer') {
-      const saved = await saveGame(board, tileBag, playerTiles, score, true);
+      const saved = await saveGame(board, tileBag, playerTiles, score, true, 'pass');
       if (saved) {
         setIsMyTurn(false);
         setLastMoveInfo(null);
@@ -612,7 +663,7 @@ const Index = () => {
     setExchangeDialogOpen(false);
 
     if (gameMode === 'multiplayer') {
-      saveGame(board, bagCopy, updatedRack, score, true).then(saved => {
+      saveGame(board, bagCopy, updatedRack, score, true, 'exchange').then(saved => {
         if (saved) {
           setIsMyTurn(false);
           setLastMoveInfo(null);
@@ -636,46 +687,19 @@ const Index = () => {
     }
   }, [board, placedTiles]);
 
-  // Get position for preview score indicator (bottom-right of last placed tile)
-  const previewScorePosition = useMemo(() => {
-    if (placedTiles.length === 0) return { x: 0, y: 0 };
+  // Get cell position for preview score indicator (bottom-right most placed tile)
+  const previewScoreCellPosition = useMemo(() => {
+    if (placedTiles.length === 0) return null;
     
     // Find the bottom-right most tile
     const sortedTiles = [...placedTiles].sort((a, b) => {
       if (a.y !== b.y) return b.y - a.y; // Higher y first
       return b.x - a.x; // Higher x first
     });
-    const lastTile = sortedTiles[0];
     
-    return {
-      x: boardDimensions.offset.x + (lastTile.x + 1) * boardDimensions.cellSize,
-      y: boardDimensions.offset.y + (lastTile.y + 1) * boardDimensions.cellSize,
-    };
-  }, [placedTiles, boardDimensions]);
+    return { x: sortedTiles[0].x, y: sortedTiles[0].y };
+  }, [placedTiles]);
 
-  // Update board dimensions for highlight overlay and preview score
-  useEffect(() => {
-    const updateDimensions = () => {
-      if (boardRef.current) {
-        const boardContainer = boardRef.current.querySelector('.bg-card');
-        if (boardContainer) {
-          const rect = boardContainer.getBoundingClientRect();
-          // Account for padding (p-1 on mobile = 4px, p-2 on desktop = 8px)
-          const padding = window.innerWidth < 640 ? 4 : 8;
-          const innerWidth = rect.width - (padding * 2);
-          const cellSize = innerWidth / 15;
-          setBoardDimensions({
-            cellSize,
-            offset: { x: padding, y: padding }
-          });
-        }
-      }
-    };
-
-    updateDimensions();
-    window.addEventListener('resize', updateDimensions);
-    return () => window.removeEventListener('resize', updateDimensions);
-  }, []);
 
   const handleSignOut = async () => {
     await signOut();
@@ -805,11 +829,15 @@ const Index = () => {
                 )}
               </div>
               {/* Green highlight overlay for last placed tiles */}
-              {lastPlacedPositions.length > 0 && boardDimensions.cellSize > 0 && (
-                <LastPlacedHighlight
-                  positions={lastPlacedPositions}
-                  boardWidth={boardDimensions.cellSize * 15 + 16} // cellSize * 15 + padding (p-2 = 8px * 2)
-                  padding={8}
+              {lastPlacedPositions.length > 0 && (
+                <LastPlacedHighlight positions={lastPlacedPositions} />
+              )}
+              {/* Preview score indicator inside board */}
+              {previewScoreCellPosition && previewScore > 0 && (
+                <PreviewScoreIndicator 
+                  score={previewScore} 
+                  cellX={previewScoreCellPosition.x}
+                  cellY={previewScoreCellPosition.y}
                 />
               )}
             </div>
@@ -854,15 +882,6 @@ const Index = () => {
 
       <DragOverlay tile={dragState.tile} position={dragState.position} />
       
-      {placedTiles.length > 0 && previewScore > 0 && boardRef.current && (
-        <PreviewScoreIndicator 
-          score={previewScore} 
-          position={{
-            x: boardRef.current.getBoundingClientRect().left + previewScorePosition.x,
-            y: boardRef.current.getBoundingClientRect().top + previewScorePosition.y,
-          }} 
-        />
-      )}
 
       <BlankTileDialog
         open={blankTileDialog?.open ?? false}
@@ -877,6 +896,21 @@ const Index = () => {
         onExchange={handleExchange}
         onCancel={() => setExchangeDialogOpen(false)}
       />
+
+      {gameOverState && (
+        <GameOverDialog
+          open={gameOverState.open}
+          winner={gameOverState.winner}
+          playerScore={score}
+          opponentScore={opponentScore}
+          opponentName={opponentName}
+          reason={gameOverState.reason}
+          onClose={() => {
+            setGameOverState(null);
+            handleBackToLobby();
+          }}
+        />
+      )}
     </div>
   );
 };
