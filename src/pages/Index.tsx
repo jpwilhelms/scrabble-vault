@@ -155,8 +155,12 @@ const Index = () => {
   }, []);
 
   const handleBackToLobby = useCallback(() => {
-    setGameMode('lobby');
     setCurrentGameId(null);
+    setPlacedTiles([]);
+    setLastPlacedPositions([]);
+    setLastMoveInfo(null);
+    setGameOverState(null);
+    setGameMode('lobby');
   }, []);
 
   // Global mouse move/up handlers for desktop drag
