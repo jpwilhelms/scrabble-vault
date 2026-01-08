@@ -46,11 +46,21 @@ export function GameList({ onSelectGame }: GameListProps) {
           player2_profile:profiles!games_player2_id_fkey(display_name, username)
         `)
         .or(`player1_id.eq.${user.id},player2_id.eq.${user.id}`)
-        .in('status', ['active', 'pending'])
+        .eq('status', 'active')
         .order('updated_at', { ascending: false });
 
       if (error) throw error;
-      setGames((data as Game[]) || []);
+      
+      // Sort games: my turn first, then others
+      const sortedGames = ((data as Game[]) || []).sort((a, b) => {
+        const aIsMyTurn = a.current_turn_player_id === user.id;
+        const bIsMyTurn = b.current_turn_player_id === user.id;
+        if (aIsMyTurn && !bIsMyTurn) return -1;
+        if (!aIsMyTurn && bIsMyTurn) return 1;
+        return 0;
+      });
+      
+      setGames(sortedGames);
     } catch (e) {
       console.error('Fehler beim Laden der Spiele:', e);
     } finally {
