@@ -38,7 +38,7 @@ interface LastMoveInfo {
 type GameMode = 'lobby' | 'solo' | 'multiplayer';
 
 const Index = () => {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const [gameMode, setGameMode] = useState<GameMode>('lobby');
   const [currentGameId, setCurrentGameId] = useState<string | null>(null);
   
@@ -705,9 +705,9 @@ const Index = () => {
   }, [placedTiles]);
 
 
-  const handleSignOut = async () => {
-    await signOut();
-  };
+  const handleHeaderExit = useCallback(() => {
+    handleBackToLobby();
+  }, [handleBackToLobby]);
 
   // Wenn eingeloggt und im Lobby-Modus, zeige MultiplayerLobby
   if (user && gameMode === 'lobby') {
@@ -791,7 +791,14 @@ const Index = () => {
                   <User className="w-3 h-3 inline mr-1" />
                   {user.user_metadata?.username || user.email?.split('@')[0]}
                 </span>
-                <Button variant="outline" size="sm" onClick={handleSignOut} className="h-8">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleHeaderExit}
+                  className="h-8"
+                  aria-label="Zur Lobby"
+                  title="Zur Lobby"
+                >
                   <LogOut className="w-4 h-4" />
                 </Button>
               </>
