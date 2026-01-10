@@ -251,12 +251,8 @@ const Index = () => {
     if (dropTarget?.type === 'board') {
       const { x, y } = dropTarget;
       
-      // In multiplayer, prevent placing tiles on board if it's not your turn
-      if (gameMode === 'multiplayer' && !isMyTurn) {
-        toast.error('Du bist nicht am Zug!');
-        endDrag();
-        return;
-      }
+      // NOTE: We allow placing tiles even when not your turn (local only)
+      // The turn check happens when confirming the move
       
       // Check if target is empty - prevent placing on occupied squares
       // Check both board state AND currently placed tiles
@@ -368,7 +364,7 @@ const Index = () => {
     }
 
     endDrag();
-  }, [board, endDrag, findDropTarget, getDragState, placedTiles, gameMode, isMyTurn]);
+  }, [board, endDrag, findDropTarget, getDragState, placedTiles]);
 
   const handleBlankTileSelect = useCallback((letter: string) => {
     if (!blankTileDialog) return;
