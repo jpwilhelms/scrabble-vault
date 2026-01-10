@@ -41,6 +41,7 @@ All colors MUST be HSL.
     /* Scrabble-spezifische Farben */
     --tile-wood: 40 35% 82%;
     --tile-wood-light: 40 40% 88%;
+    --tile-wood-dark: 40 30% 72%;
     --board-beige: 220 15% 92%;
     
     /* Premium-Felder */
@@ -96,6 +97,7 @@ All colors MUST be HSL.
     
     --tile-wood: 40 35% 82%;
     --tile-wood-light: 40 40% 88%;
+    --tile-wood-dark: 40 30% 72%;
     --board-beige: 220 15% 22%;
     
     --double-letter: 200 60% 45%;
