@@ -251,6 +251,13 @@ const Index = () => {
     if (dropTarget?.type === 'board') {
       const { x, y } = dropTarget;
       
+      // In multiplayer, prevent placing tiles on board if it's not your turn
+      if (gameMode === 'multiplayer' && !isMyTurn) {
+        toast.error('Du bist nicht am Zug!');
+        endDrag();
+        return;
+      }
+      
       // Check if target is empty - prevent placing on occupied squares
       // Check both board state AND currently placed tiles
       const existingTile = board[y][x].tile;
@@ -345,6 +352,7 @@ const Index = () => {
         }
       } else if (source?.type === 'rack' && dropTarget.index !== undefined) {
         // Reorder within rack (shift tiles to make space, preserve relative order)
+        // NOTE: We do NOT save to database here - only confirmed moves should be saved
         setPlayerTiles(prev => {
           const currentIndex = prev.findIndex(t => t?.id === tile.id);
           const targetIndex = dropTarget.index!;
@@ -356,18 +364,11 @@ const Index = () => {
           
           return newTiles;
         });
-        
-        // Save rack order for multiplayer after state update (debounced via timeout)
-        if (gameMode === 'multiplayer' && currentGameId) {
-          setTimeout(() => {
-            saveGame(board, tileBag, playerTiles, score, false);
-          }, 500);
-        }
       }
     }
 
     endDrag();
-  }, [board, endDrag, findDropTarget, getDragState, placedTiles, gameMode, currentGameId, tileBag, score, saveGame]);
+  }, [board, endDrag, findDropTarget, getDragState, placedTiles, gameMode, isMyTurn]);
 
   const handleBlankTileSelect = useCallback((letter: string) => {
     if (!blankTileDialog) return;
