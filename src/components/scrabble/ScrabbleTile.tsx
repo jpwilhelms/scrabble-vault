@@ -5,6 +5,7 @@ import { useCallback } from 'react';
 interface ScrabbleTileProps {
   tile: Tile;
   isDragging?: boolean;
+  isHighlighted?: boolean;
   onDragStart?: (position: { x: number; y: number }) => void;
   onDragMove?: (position: { x: number; y: number }) => void;
   onDragEnd?: (position: { x: number; y: number }) => void;
@@ -16,6 +17,7 @@ interface ScrabbleTileProps {
 export function ScrabbleTile({ 
   tile, 
   isDragging = false, 
+  isHighlighted = false,
   onDragStart,
   onDragMove,
   onDragEnd,
@@ -67,7 +69,10 @@ export function ScrabbleTile({
       onTouchEnd={handleTouchEnd}
       onMouseDown={handleMouseDown}
       className={cn(
-        "relative aspect-square bg-gradient-to-br from-scrabble-tileLight to-scrabble-tile",
+        "relative aspect-square",
+        isHighlighted 
+          ? "bg-gradient-to-br from-scrabble-tile to-scrabble-tileDark" 
+          : "bg-gradient-to-br from-scrabble-tileLight to-scrabble-tile",
         "rounded-md shadow-md select-none",
         draggable && "cursor-move",
         "border border-scrabble-tile/20",

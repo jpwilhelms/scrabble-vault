@@ -63,6 +63,7 @@ export default {
         scrabble: {
           tile: "hsl(var(--tile-wood))",
           tileLight: "hsl(var(--tile-wood-light))",
+          tileDark: "hsl(var(--tile-wood-dark))",
           board: "hsl(var(--board-beige))",
           doubleLetter: "hsl(var(--double-letter))",
           tripleLetter: "hsl(var(--triple-letter))",

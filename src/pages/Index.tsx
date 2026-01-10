@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { BoardSquare as BoardSquareType, Tile, PlayedWord } from '@/types/scrabble';
 import { createBoard } from '@/utils/scrabbleBoard';
 import { generateTileBag, drawTiles } from '@/utils/tileGenerator';
-import { calculateTotalPoints } from '@/utils/wordScoring';
+import { calculateTotalPoints, findAllWords } from '@/utils/wordScoring';
 import { BoardSquare } from '@/components/scrabble/BoardSquare';
 import { PlayerRack } from '@/components/scrabble/PlayerRack';
 import { ScoreBoard } from '@/components/scrabble/ScoreBoard';
@@ -12,7 +12,7 @@ import { BlankTileDialog } from '@/components/scrabble/BlankTileDialog';
 import { ExchangeTilesDialog } from '@/components/scrabble/ExchangeTilesDialog';
 import { DragOverlay } from '@/components/scrabble/DragOverlay';
 import { PreviewScoreIndicator } from '@/components/scrabble/PreviewScoreIndicator';
-import { LastPlacedHighlight } from '@/components/scrabble/LastPlacedHighlight';
+
 import { GameOverDialog } from '@/components/scrabble/GameOverDialog';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
 import { useAuth } from '@/hooks/useAuth';
@@ -504,8 +504,20 @@ const Index = () => {
     setLastWords(words);
     setLastBingo(isBingo);
     
-    // Store positions for highlighting
-    setLastPlacedPositions(placedTiles.map(({ x, y }) => ({ x, y })));
+    // Store positions for highlighting - ALL tiles of formed words (not just newly placed)
+    const allWords = findAllWords(board, placedTiles);
+    const highlightPositions: Array<{ x: number; y: number }> = [];
+    const posSet = new Set<string>();
+    for (const wordInfo of allWords) {
+      for (const tile of wordInfo.tiles) {
+        const key = `${tile.x},${tile.y}`;
+        if (!posSet.has(key)) {
+          posSet.add(key);
+          highlightPositions.push({ x: tile.x, y: tile.y });
+        }
+      }
+    }
+    setLastPlacedPositions(highlightPositions);
     setPlacedTiles([]);
 
     const bagCopy = [...tileBag];
@@ -836,10 +848,6 @@ const Index = () => {
                   })
                 )}
               </div>
-              {/* Green highlight overlay for last placed tiles */}
-              {lastPlacedPositions.length > 0 && (
-                <LastPlacedHighlight positions={lastPlacedPositions} />
-              )}
               {/* Preview score indicator inside board */}
               {previewScoreCellPosition && previewScore > 0 && (
                 <PreviewScoreIndicator 

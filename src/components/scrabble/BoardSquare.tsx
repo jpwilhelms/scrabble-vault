@@ -38,8 +38,8 @@ export function BoardSquare({
         "aspect-square border border-border/40 relative",
         "transition-all duration-200",
         !square.tile && getPremiumColor(square.premium),
-        square.tile && "bg-gradient-to-br from-scrabble-tileLight to-scrabble-tile",
-        // isLastPlaced styling now handled by LastPlacedHighlight overlay
+        square.tile && !isLastPlaced && "bg-gradient-to-br from-scrabble-tileLight to-scrabble-tile",
+        square.tile && isLastPlaced && "bg-gradient-to-br from-scrabble-tile to-scrabble-tileDark",
       )}
     >
       {!square.tile && square.premium && square.premium !== 'STAR' && (
@@ -61,6 +61,7 @@ export function BoardSquare({
             draggable={isCurrentTurn} 
             size="small"
             isDragging={isDraggedTile}
+            isHighlighted={isLastPlaced}
             onDragStart={handleTileDragStart}
             onDragMove={onTileDragMove}
             onDragEnd={onTileDragEnd}
