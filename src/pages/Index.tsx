@@ -17,6 +17,7 @@ import { GameOverDialog } from '@/components/scrabble/GameOverDialog';
 import { useTouchDrag } from '@/hooks/useTouchDrag';
 import { useAuth } from '@/hooks/useAuth';
 import { useGamePersistence } from '@/hooks/useGamePersistence';
+import { useWordValidation } from '@/hooks/useWordValidation';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -71,6 +72,7 @@ const Index = () => {
   }, [board]);
 
   const { dragState, startDrag, updatePosition, endDrag, getDragState } = useTouchDrag();
+  const { validateWords, isValidating } = useWordValidation();
 
   // Game persistence hook for multiplayer
   const { gameState, loading: gameLoading, saveGame } = useGamePersistence({
@@ -487,6 +489,20 @@ const Index = () => {
     // Berechne alle Wörter und Punkte
     const { totalPoints, words } = calculateTotalPoints(board, placedTiles);
     const isBingo = placedTiles.length === 7;
+
+    // Validate all words against the dictionary API
+    const wordStrings = words.map(w => w.word);
+    console.log('Validating words:', wordStrings);
+    
+    const validationResults = await validateWords(wordStrings);
+    const invalidWords = validationResults.filter(r => !r.isValid);
+    
+    if (invalidWords.length > 0) {
+      const invalidWordList = invalidWords.map(w => `"${w.word}"`).join(', ');
+      toast.error(`Ungültige Wörter: ${invalidWordList}`);
+      return;
+    }
+
     const newScore = score + totalPoints;
 
     // Speichere in played_words Datenbank
@@ -889,10 +905,11 @@ const Index = () => {
               onPass={handlePass}
               onExchange={() => setExchangeDialogOpen(true)}
               onForfeit={handleForfeit}
-              canConfirm={placedTiles.length > 0 && (gameMode === 'solo' || isMyTurn)}
+              canConfirm={placedTiles.length > 0 && (gameMode === 'solo' || isMyTurn) && !isValidating}
               canExchange={tileBag.length >= 7 && (gameMode === 'solo' || isMyTurn)}
               hasPlacedTiles={placedTiles.length > 0}
               isMultiplayer={gameMode === 'multiplayer'}
+              isValidating={isValidating}
             />
 
             <ScoreBoard 
