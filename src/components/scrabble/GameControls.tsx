@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { RotateCcw, Check } from 'lucide-react';
+import { RotateCcw, Check, Loader2 } from 'lucide-react';
 import { GameActionsMenu } from './GameActionsMenu';
 
 interface GameControlsProps {
@@ -12,6 +12,7 @@ interface GameControlsProps {
   canExchange: boolean;
   hasPlacedTiles: boolean;
   isMultiplayer?: boolean;
+  isValidating?: boolean;
 }
 
 export function GameControls({ 
@@ -24,6 +25,7 @@ export function GameControls({
   canExchange,
   hasPlacedTiles,
   isMultiplayer,
+  isValidating,
 }: GameControlsProps) {
   return (
     <div className="flex gap-2 sm:gap-3">
@@ -33,8 +35,17 @@ export function GameControls({
         size="lg"
         className="flex-1"
       >
-        <Check className="mr-2 h-5 w-5" />
-        Wort legen
+        {isValidating ? (
+          <>
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Prüfe...
+          </>
+        ) : (
+          <>
+            <Check className="mr-2 h-5 w-5" />
+            Wort legen
+          </>
+        )}
       </Button>
       <Button
         onClick={onReset}

@@ -63,6 +63,24 @@ export type Database = {
           },
         ]
       }
+      dictionary: {
+        Row: {
+          created_at: string
+          id: string
+          word: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          word: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          word?: string
+        }
+        Relationships: []
+      }
       game_invitations: {
         Row: {
           created_at: string
