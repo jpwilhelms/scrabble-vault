@@ -63,6 +63,12 @@ const Index = () => {
     reason: 'tiles' | 'passes' | 'forfeit';
   } | null>(null);
   const boardRef = useRef<HTMLDivElement>(null);
+  const boardStateRef = useRef<BoardSquareType[][]>(board);
+
+  // Keep boardStateRef in sync with board state
+  useEffect(() => {
+    boardStateRef.current = board;
+  }, [board]);
 
   const { dragState, startDrag, updatePosition, endDrag, getDragState } = useTouchDrag();
 
@@ -256,14 +262,22 @@ const Index = () => {
       
       // Check if target is empty - prevent placing on occupied squares
       // Check both board state AND currently placed tiles
-      const existingTile = board[y][x].tile;
-      const placedAtTarget = placedTiles.some(p => p.x === x && p.y === y);
+      // Also check if it's our own tile being moved to the same position
       const isOwnTileBeingMoved = source?.type === 'board' && source.x === x && source.y === y;
       
-      if ((existingTile || placedAtTarget) && !isOwnTileBeingMoved) {
-        toast.error('Dieses Feld ist bereits belegt');
-        endDrag();
-        return;
+      if (!isOwnTileBeingMoved) {
+        // Use ref to get current board state (avoids stale closure issues)
+        const currentBoard = boardStateRef.current;
+        // Check current board state for existing permanent tiles
+        const existingTile = currentBoard[y][x].tile;
+        // Check if any placed tile (current turn) is at target
+        const placedAtTarget = placedTiles.some(p => p.x === x && p.y === y);
+        
+        if (existingTile || placedAtTarget) {
+          toast.error('Dieses Feld ist bereits belegt');
+          endDrag();
+          return;
+        }
       }
 
       // Check if this is an original blank tile being moved
@@ -364,7 +378,7 @@ const Index = () => {
     }
 
     endDrag();
-  }, [board, endDrag, findDropTarget, getDragState, placedTiles]);
+  }, [endDrag, findDropTarget, getDragState, placedTiles]);
 
   const handleBlankTileSelect = useCallback((letter: string) => {
     if (!blankTileDialog) return;
