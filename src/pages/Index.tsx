@@ -94,6 +94,17 @@ const Index = () => {
       setHasFirstMove(gameState.hasFirstMove);
       setPlacedTiles([]);
 
+      // Show opponent's last move info when it's now my turn
+      if (gameState.isMyTurn && gameState.lastMoveType && gameState.lastMoveType !== 'word') {
+        setLastMoveInfo({
+          type: gameState.lastMoveType,
+          playerName: gameState.opponentName,
+        });
+      } else if (!gameState.isMyTurn) {
+        // Clear last move info when it's not my turn (I just made a move)
+        setLastMoveInfo(null);
+      }
+
       // Check for game over conditions
       if (gameState.gameStatus === 'finished') {
         let winner: 'player' | 'opponent' | 'draw' = 'draw';
@@ -102,7 +113,19 @@ const Index = () => {
                           (!gameState.isPlayer1 && gameState.winnerId === gameState.player2Id);
           winner = isWinner ? 'player' : 'opponent';
         }
-        setGameOverState({ open: true, winner, reason: 'forfeit' });
+        
+        // Determine reason: if tile bag is empty and one player has no tiles, it was won by tiles
+        // If consecutive passes >= 4, it was passes. Otherwise, assume forfeit.
+        let reason: 'tiles' | 'passes' | 'forfeit' = 'forfeit';
+        const playerHasNoTiles = gameState.playerTiles.every(t => t === null);
+        const opponentHasNoTiles = gameState.opponentTiles.every(t => t === null);
+        if (gameState.tileBag.length === 0 && (playerHasNoTiles || opponentHasNoTiles)) {
+          reason = 'tiles';
+        } else if (gameState.consecutivePasses >= 4) {
+          reason = 'passes';
+        }
+        
+        setGameOverState({ open: true, winner, reason });
       } else if (gameState.consecutivePasses >= 4) {
         // Both players passed twice = 4 total passes
         const winner = gameState.playerScore > gameState.opponentScore ? 'player' :
