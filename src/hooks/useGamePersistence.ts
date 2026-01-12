@@ -22,6 +22,7 @@ interface GameState {
   isPlayer1: boolean;
   player1Id: string;
   player2Id: string | null;
+  lastMoveType: 'word' | 'pass' | 'exchange' | null;
 }
 
 interface UseGamePersistenceOptions {
@@ -137,6 +138,7 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
       consecutive_passes: number;
       status: 'pending' | 'active' | 'finished' | 'abandoned';
       winner_id: string | null;
+      last_move_type: string | null;
       player1?: { id: string; display_name: string | null; username: string | null } | null;
       player2?: { id: string; display_name: string | null; username: string | null } | null;
     }) => {
@@ -222,6 +224,7 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
         isPlayer1,
         player1Id: game.player1_id,
         player2Id: game.player2_id,
+        lastMoveType: game.last_move_type as 'word' | 'pass' | 'exchange' | null,
       });
     };
 
@@ -306,6 +309,7 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
         tile_bag: tileBagToJson(tileBag),
         updated_at: new Date().toISOString(),
         consecutive_passes: newConsecutivePasses,
+        last_move_type: moveType,
       };
 
       if (isPlayer1) {

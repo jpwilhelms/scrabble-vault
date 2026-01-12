@@ -204,6 +204,7 @@ export type Database = {
           current_turn_player_id: string | null
           id: string
           is_solo: boolean
+          last_move_type: string | null
           player1_id: string
           player1_rack: Json
           player1_score: number
@@ -222,6 +223,7 @@ export type Database = {
           current_turn_player_id?: string | null
           id?: string
           is_solo?: boolean
+          last_move_type?: string | null
           player1_id: string
           player1_rack?: Json
           player1_score?: number
@@ -240,6 +242,7 @@ export type Database = {
           current_turn_player_id?: string | null
           id?: string
           is_solo?: boolean
+          last_move_type?: string | null
           player1_id?: string
           player1_rack?: Json
           player1_score?: number

@@ -59,7 +59,7 @@ export function ScrabbleTile({
   }, [draggable, onDragStart]);
 
   // Font sizes using container query units for perfect scaling
-  const letterSize = size === 'small' ? '50cqw' : '55cqw';
+  const letterSize = size === 'small' ? '60cqw' : '65cqw';
   const pointsSize = size === 'small' ? '18cqw' : '20cqw';
 
   return (
@@ -77,7 +77,7 @@ export function ScrabbleTile({
         draggable && "cursor-move",
         "border border-scrabble-tile/20",
         "transition-all duration-200",
-        isDragging && "opacity-30 scale-95",
+        isDragging && "opacity-0",
         className
       )}
       style={{
