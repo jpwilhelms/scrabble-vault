@@ -69,27 +69,32 @@ Deno.serve(async (req) => {
         const apiResults = await response.json();
         console.log(`API response for "${word}":`, apiResults);
 
-        // The API returns an array of valid words that can be formed from the letters
-        // We need to check if our word is in the results OR if it returns our exact word
+        // The API returns: { success: true, data: { wordGroups: [{ words: [...] }] } }
         let isValid = false;
         const wordsToInsert: string[] = [];
 
-        if (Array.isArray(apiResults)) {
-          // Add all returned words to the dictionary
-          for (const resultWord of apiResults) {
-            const normalizedResult = (typeof resultWord === 'string' ? resultWord : resultWord.word || '').toLowerCase().trim();
-            if (normalizedResult) {
-              wordsToInsert.push(normalizedResult);
-              if (normalizedResult === word) {
-                isValid = true;
+        if (apiResults.success && apiResults.data?.wordGroups) {
+          // Extract all words from all word groups
+          for (const group of apiResults.data.wordGroups) {
+            if (Array.isArray(group.words)) {
+              for (const resultWord of group.words) {
+                const normalizedResult = resultWord.toLowerCase().trim();
+                if (normalizedResult) {
+                  wordsToInsert.push(normalizedResult);
+                  if (normalizedResult === word) {
+                    isValid = true;
+                  }
+                }
               }
             }
           }
         }
 
+        console.log(`Word "${word}" is valid: ${isValid}, found ${wordsToInsert.length} words to insert`);
+
         // Insert all found words into dictionary (ignore duplicates)
         if (wordsToInsert.length > 0) {
-          console.log(`Inserting ${wordsToInsert.length} words into dictionary`);
+          console.log(`Inserting words into dictionary:`, wordsToInsert);
           
           for (const wordToInsert of wordsToInsert) {
             const { error: insertError } = await supabase
