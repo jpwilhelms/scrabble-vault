@@ -1,9 +1,10 @@
 import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { PlayerList } from './PlayerList';
 import { GameList } from './GameList';
 import { InvitationList } from './InvitationList';
-import { LogOut, User, Gamepad2 } from 'lucide-react';
+import { LogOut, User, Gamepad2, History } from 'lucide-react';
 
 interface MultiplayerLobbyProps {
   onSelectGame: (gameId: string) => void;
@@ -12,6 +13,7 @@ interface MultiplayerLobbyProps {
 
 export function MultiplayerLobby({ onSelectGame, onStartSoloGame }: MultiplayerLobbyProps) {
   const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   const handleSignOut = async () => {
     await signOut();
@@ -24,6 +26,14 @@ export function MultiplayerLobby({ onSelectGame, onStartSoloGame }: MultiplayerL
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground">Scrabble</h1>
           <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate('/history')}
+              title="Historie"
+            >
+              <History className="w-4 h-4" />
+            </Button>
             <span className="text-sm text-muted-foreground">
               <User className="w-4 h-4 inline mr-1" />
               {user?.user_metadata?.username || user?.email?.split('@')[0]}

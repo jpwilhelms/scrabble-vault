@@ -42,6 +42,7 @@ const Index = () => {
   const { user, loading: authLoading } = useAuth();
   const [gameMode, setGameMode] = useState<GameMode>('lobby');
   const [currentGameId, setCurrentGameId] = useState<string | null>(null);
+  const [lastOpponentId, setLastOpponentId] = useState<string | null>(null);
   
   const [board, setBoard] = useState<BoardSquareType[][]>(() => createBoard());
   const [tileBag, setTileBag] = useState<Tile[]>(() => generateTileBag());
@@ -93,6 +94,10 @@ const Index = () => {
       setIsMyTurn(gameState.isMyTurn);
       setHasFirstMove(gameState.hasFirstMove);
       setPlacedTiles([]);
+      
+      // Store opponent ID for revenge
+      const oppId = gameState.isPlayer1 ? gameState.player2Id : gameState.player1Id;
+      if (oppId) setLastOpponentId(oppId);
 
       // Show opponent's last move info when it's now my turn
       if (gameState.isMyTurn && gameState.lastMoveType && gameState.lastMoveType !== 'word') {
@@ -808,23 +813,19 @@ const Index = () => {
     );
   }
 
-  // If not logged in, show solo game option or login
+  // If not logged in, show login prompt (no solo play without login)
   if (!user && gameMode === 'lobby') {
     return (
       <div className="min-h-[100dvh] bg-background p-4 flex flex-col items-center justify-center">
         <div className="text-center space-y-6">
           <h1 className="text-3xl font-bold text-foreground">Scrabble</h1>
-          <div className="space-y-3">
-            <Button onClick={handleStartSoloGame} size="lg" className="w-full">
-              Solo spielen
+          <p className="text-muted-foreground">Melde dich an, um zu spielen.</p>
+          <Link to="/auth">
+            <Button size="lg" className="w-full">
+              <LogIn className="w-4 h-4 mr-2" />
+              Anmelden
             </Button>
-            <Link to="/auth">
-              <Button variant="outline" size="lg" className="w-full">
-                <LogIn className="w-4 h-4 mr-2" />
-                Anmelden für Multiplayer
-              </Button>
-            </Link>
-          </div>
+          </Link>
         </div>
       </div>
     );
@@ -975,6 +976,33 @@ const Index = () => {
           opponentScore={opponentScore}
           opponentName={opponentName}
           reason={gameOverState.reason}
+          showRevenge={gameMode === 'multiplayer' && !!lastOpponentId}
+          onRevenge={async () => {
+            if (!user || !lastOpponentId) return;
+            try {
+              // Create new game
+              const { data: newGame, error: gameError } = await supabase
+                .from('games')
+                .insert({
+                  player1_id: user.id,
+                  player2_id: lastOpponentId,
+                  status: 'active',
+                  current_turn_player_id: user.id,
+                })
+                .select('id')
+                .single();
+
+              if (gameError) throw gameError;
+              
+              setGameOverState(null);
+              setCurrentGameId(newGame.id);
+              setGameMode('multiplayer');
+              toast.success('Revanche gestartet!');
+            } catch (e) {
+              console.error('Fehler beim Starten der Revanche:', e);
+              toast.error('Revanche konnte nicht gestartet werden.');
+            }
+          }}
           onClose={() => {
             setGameOverState(null);
             handleBackToLobby();

@@ -7,7 +7,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Trophy, Frown } from 'lucide-react';
+import { Trophy, Frown, RotateCcw } from 'lucide-react';
 
 interface GameOverDialogProps {
   open: boolean;
@@ -16,7 +16,9 @@ interface GameOverDialogProps {
   opponentScore: number;
   opponentName: string;
   reason: 'tiles' | 'passes' | 'forfeit';
+  showRevenge?: boolean;
   onClose: () => void;
+  onRevenge?: () => void;
 }
 
 export function GameOverDialog({
@@ -26,7 +28,9 @@ export function GameOverDialog({
   opponentScore,
   opponentName,
   reason,
+  showRevenge = false,
   onClose,
+  onRevenge,
 }: GameOverDialogProps) {
   const isWinner = winner === 'player';
   const isDraw = winner === 'draw';
@@ -70,8 +74,14 @@ export function GameOverDialog({
           </div>
         </div>
 
-        <DialogFooter>
-          <Button onClick={onClose} className="w-full">
+        <DialogFooter className="flex-col gap-2 sm:flex-col">
+          {showRevenge && onRevenge && (
+            <Button onClick={onRevenge} variant="default" className="w-full">
+              <RotateCcw className="w-4 h-4 mr-2" />
+              Revanche
+            </Button>
+          )}
+          <Button onClick={onClose} variant={showRevenge ? "outline" : "default"} className="w-full">
             Zurück zur Lobby
           </Button>
         </DialogFooter>
