@@ -353,9 +353,14 @@ export function useGamePersistence({ gameId, userId, enabled }: UseGamePersisten
           table: 'games',
           filter: `id=eq.${gameId}`
         },
-        () => {
-          // Reload game state when opponent makes a move
-          loadGame();
+        (payload) => {
+          const newData = payload.new as { current_turn_player_id: string | null };
+          const oldData = payload.old as { current_turn_player_id: string | null };
+          
+          // Only reload if turn actually changed (opponent made a move)
+          if (newData.current_turn_player_id !== oldData.current_turn_player_id) {
+            loadGame();
+          }
         }
       )
       .subscribe();
