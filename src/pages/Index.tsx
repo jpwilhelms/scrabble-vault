@@ -18,6 +18,7 @@ import { useTouchDrag } from '@/hooks/useTouchDrag';
 import { useAuth } from '@/hooks/useAuth';
 import { useGamePersistence } from '@/hooks/useGamePersistence';
 import { useWordValidation } from '@/hooks/useWordValidation';
+import { useGameNotifications } from '@/hooks/useGameNotifications';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -80,6 +81,13 @@ const Index = () => {
     gameId: currentGameId,
     userId: user?.id ?? null,
     enabled: gameMode === 'multiplayer'
+  });
+
+  // Game notifications for opponent moves and invitation acceptance
+  useGameNotifications({
+    userId: user?.id ?? null,
+    currentGameId,
+    enabled: gameMode === 'lobby' || gameMode === 'multiplayer'
   });
 
   // Sync local state with loaded game state
