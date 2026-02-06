@@ -29,10 +29,10 @@ export function PlayerRack({
   return (
     <div 
       ref={rackRef}
-      className="bg-card rounded-lg shadow-lg p-2 sm:p-3 border-2 border-border"
+      className="w-full h-full"
       data-drop-target="rack"
     >
-      <div className="grid grid-cols-7 gap-1 sm:gap-2">
+      <div className="grid grid-cols-7 gap-[2%] h-full">
         {Array.from({ length: 7 }).map((_, index) => {
           const tile = tiles[index];
           return (
