@@ -36,12 +36,12 @@ export function ScoreBoard({
   const totalWithBonus = lastWordsTotal + (bingoBonus ? 50 : 0);
 
   return (
-    <div className="bg-card rounded-lg shadow-lg p-3 sm:p-4 border-2 border-border">
+    <div className="bg-card rounded-lg shadow-md p-2 sm:p-3 border-2 border-border">
       {isMultiplayer ? (
-        <div className="space-y-2">
+        <div className="space-y-1">
           {/* Last move info for opponent */}
           {lastMoveInfo && (
-            <div className="text-xs p-2 rounded bg-muted/50 border border-border">
+            <div className="text-xs p-1.5 rounded bg-muted/50 border border-border">
               <span className="font-medium">{lastMoveInfo.playerName || opponentName}:</span>{' '}
               {lastMoveInfo.type === 'pass' && (
                 <span className="text-muted-foreground">hat ausgesetzt</span>
@@ -68,20 +68,20 @@ export function ScoreBoard({
             </div>
           )}
           
-          {/* Multiplayer score display */}
-          <div className="flex items-center justify-between">
-            <div className={`flex-1 p-2 rounded ${isMyTurn ? 'bg-primary/10 border border-primary' : ''}`}>
-              <div className="text-xs text-muted-foreground">Du {isMyTurn && '(am Zug)'}</div>
-              <div className="text-2xl font-bold text-primary">{score}</div>
+          {/* Multiplayer score display - more compact */}
+          <div className="flex items-center justify-between gap-2">
+            <div className={`flex-1 p-1.5 rounded ${isMyTurn ? 'bg-primary/10 border border-primary' : ''}`}>
+              <div className="text-[10px] text-muted-foreground leading-tight">Du {isMyTurn && '(am Zug)'}</div>
+              <div className="text-xl font-bold text-primary leading-tight">{score}</div>
             </div>
-            <div className="px-2 text-muted-foreground">vs</div>
-            <div className={`flex-1 p-2 rounded text-right ${!isMyTurn ? 'bg-destructive/10 border border-destructive' : ''}`}>
-              <div className="text-xs text-muted-foreground">{opponentName} {!isMyTurn && '(am Zug)'}</div>
-              <div className="text-2xl font-bold text-destructive">{opponentScore ?? 0}</div>
+            <div className="text-xs text-muted-foreground">vs</div>
+            <div className={`flex-1 p-1.5 rounded text-right ${!isMyTurn ? 'bg-destructive/10 border border-destructive' : ''}`}>
+              <div className="text-[10px] text-muted-foreground leading-tight">{opponentName} {!isMyTurn && '(am Zug)'}</div>
+              <div className="text-xl font-bold text-destructive leading-tight">{opponentScore ?? 0}</div>
             </div>
           </div>
           {lastWords && lastWords.length > 0 && (
-            <div className="text-xs sm:text-sm text-muted-foreground">
+            <div className="text-xs text-muted-foreground">
               {lastWords.map((w, i) => (
                 <span key={i}>
                   {i > 0 && ' + '}
@@ -89,19 +89,19 @@ export function ScoreBoard({
                 </span>
               ))}
               {bingoBonus && <span className="text-accent font-bold"> +50 Bingo!</span>}
-              <span className="ml-2 font-bold text-primary">= {totalWithBonus}P</span>
+              <span className="ml-1 font-bold text-primary">= {totalWithBonus}P</span>
             </div>
           )}
-          <div className="text-xs text-muted-foreground">
-            Steine im Beutel: <span className="font-semibold">{tilesRemaining}</span>
+          <div className="text-[10px] text-muted-foreground">
+            Beutel: <span className="font-semibold">{tilesRemaining}</span>
           </div>
         </div>
       ) : (
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold text-foreground">Punktestand</h2>
+        <div className="flex items-center justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm sm:text-base font-bold text-foreground leading-tight">Punkte</h2>
             {lastWords && lastWords.length > 0 && (
-              <div className="text-xs sm:text-sm text-muted-foreground mt-1">
+              <div className="text-xs text-muted-foreground">
                 {lastWords.map((w, i) => (
                   <span key={i}>
                     {i > 0 && ' + '}
@@ -109,14 +109,14 @@ export function ScoreBoard({
                   </span>
                 ))}
                 {bingoBonus && <span className="text-accent font-bold"> +50 Bingo!</span>}
-                <span className="ml-2 font-bold text-primary">= {totalWithBonus}P</span>
+                <span className="ml-1 font-bold text-primary">= {totalWithBonus}P</span>
               </div>
             )}
-            <div className="text-xs text-muted-foreground mt-1">
-              Steine im Beutel: <span className="font-semibold">{tilesRemaining}</span>
+            <div className="text-[10px] text-muted-foreground">
+              Beutel: <span className="font-semibold">{tilesRemaining}</span>
             </div>
           </div>
-          <div className="text-3xl sm:text-4xl font-bold text-primary">{score}</div>
+          <div className="text-2xl sm:text-3xl font-bold text-primary">{score}</div>
         </div>
       )}
     </div>
