@@ -884,54 +884,62 @@ const Index = () => {
           </div>
         </div>
         
-        <div className="flex flex-col gap-1 sm:gap-2 flex-1 min-h-0">
-          {/* Spielfeld - relative container for overlay */}
-          {/* Mobile: width-based, Desktop: height-based to prevent overflow */}
-          <div className="w-full sm:w-auto sm:self-center relative flex-1 min-h-0 flex items-center justify-center" ref={boardRef}>
-            <div className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 border-2 border-border w-full aspect-square sm:h-full sm:w-auto relative">
-              <div className="grid grid-cols-15 gap-0 w-full h-full">
-                {board.map((row, y) =>
-                  row.map((square, x) => {
-                    const isCurrentTurn = placedTiles.some(p => p.x === x && p.y === y);
-                    const isDraggedTile = dragState.source?.type === 'board' && 
-                      dragState.source.x === x && dragState.source.y === y;
-                    const isLastPlaced = lastPlacedPositions.some(p => p.x === x && p.y === y);
-                    return (
-                      <BoardSquare
-                        key={`${x}-${y}`}
-                        square={square}
-                        isCurrentTurn={isCurrentTurn}
-                        isDraggedTile={isDraggedTile}
-                        isLastPlaced={isLastPlaced}
-                        onTileDragStart={handleBoardTileDragStart}
-                        onTileDragMove={handleDragMove}
-                        onTileDragEnd={handleDragEnd}
-                      />
-                    );
-                  })
+        {/* Main game layout: Board+Rack as unit, Controls+Score beside on wide screens */}
+        <div className="flex flex-col xl:flex-row gap-2 flex-1 min-h-0">
+          {/* Board + Rack container - stays together as a unit */}
+          <div className="flex flex-col flex-1 min-h-0 xl:flex-initial">
+            {/* Board wrapper - height-based on desktop to fit screen */}
+            <div className="w-full sm:w-auto sm:self-center relative flex-1 min-h-0 flex items-center justify-center" ref={boardRef}>
+              <div className="bg-card rounded-lg rounded-b-none shadow-2xl p-1 sm:p-2 pb-0 sm:pb-0 border-2 border-b-0 border-border w-full aspect-square sm:h-full sm:w-auto relative">
+                <div className="grid grid-cols-15 gap-0 w-full h-full">
+                  {board.map((row, y) =>
+                    row.map((square, x) => {
+                      const isCurrentTurn = placedTiles.some(p => p.x === x && p.y === y);
+                      const isDraggedTile = dragState.source?.type === 'board' && 
+                        dragState.source.x === x && dragState.source.y === y;
+                      const isLastPlaced = lastPlacedPositions.some(p => p.x === x && p.y === y);
+                      return (
+                        <BoardSquare
+                          key={`${x}-${y}`}
+                          square={square}
+                          isCurrentTurn={isCurrentTurn}
+                          isDraggedTile={isDraggedTile}
+                          isLastPlaced={isLastPlaced}
+                          onTileDragStart={handleBoardTileDragStart}
+                          onTileDragMove={handleDragMove}
+                          onTileDragEnd={handleDragEnd}
+                        />
+                      );
+                    })
+                  )}
+                </div>
+                {/* Preview score indicator inside board */}
+                {previewScoreCellPosition && previewScore > 0 && (
+                  <PreviewScoreIndicator 
+                    score={previewScore} 
+                    cellX={previewScoreCellPosition.x}
+                    cellY={previewScoreCellPosition.y}
+                  />
                 )}
               </div>
-              {/* Preview score indicator inside board */}
-              {previewScoreCellPosition && previewScore > 0 && (
-                <PreviewScoreIndicator 
-                  score={previewScore} 
-                  cellX={previewScoreCellPosition.x}
-                  cellY={previewScoreCellPosition.y}
+            </div>
+            
+            {/* Rack - same width as board, no gap */}
+            <div className="w-full sm:w-auto sm:self-center flex-shrink-0">
+              <div className="bg-card rounded-lg rounded-t-none shadow-2xl p-1 sm:p-2 pt-1 sm:pt-1 border-2 border-t border-border w-full sm:aspect-[15/2] sm:h-auto relative" style={{ aspectRatio: '15/2' }}>
+                <PlayerRack
+                  tiles={playerTiles}
+                  draggedTileId={dragState.source?.type === 'rack' ? dragState.tile?.id : null}
+                  onTileDragStart={handleRackTileDragStart}
+                  onTileDragMove={handleDragMove}
+                  onTileDragEnd={handleDragEnd}
                 />
-              )}
+              </div>
             </div>
           </div>
-
-          {/* Rack, Controls und Score - compacted */}
-          <div className="space-y-1 flex-shrink-0">
-            <PlayerRack
-              tiles={playerTiles}
-              draggedTileId={dragState.source?.type === 'rack' ? dragState.tile?.id : null}
-              onTileDragStart={handleRackTileDragStart}
-              onTileDragMove={handleDragMove}
-              onTileDragEnd={handleDragEnd}
-            />
-            
+          
+          {/* Controls and Score - below on mobile/tablet, beside on xl screens */}
+          <div className="flex flex-col gap-1 flex-shrink-0 xl:w-64 xl:justify-start">
             <GameControls
               onConfirm={handleConfirmWord}
               onReset={handleReset}
