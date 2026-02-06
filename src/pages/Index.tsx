@@ -886,8 +886,9 @@ const Index = () => {
         
         <div className="flex flex-col gap-1 sm:gap-2 flex-1 min-h-0">
           {/* Spielfeld - relative container for overlay */}
-          <div className="w-full relative flex-shrink-0" ref={boardRef}>
-            <div className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 border-2 border-border w-full aspect-square relative">
+          {/* Mobile: width-based, Desktop: height-based to prevent overflow */}
+          <div className="w-full sm:w-auto sm:self-center relative flex-1 min-h-0 flex items-center justify-center" ref={boardRef}>
+            <div className="bg-card rounded-lg shadow-2xl p-1 sm:p-2 border-2 border-border w-full aspect-square sm:h-full sm:w-auto relative">
               <div className="grid grid-cols-15 gap-0 w-full h-full">
                 {board.map((row, y) =>
                   row.map((square, x) => {
